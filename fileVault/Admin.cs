@@ -43,7 +43,7 @@ namespace fileVault
                 (dgvData,       "SELECT * FROM users"),
             };
 
-            PopulateAccessLogUserFilter(); // new: fill the "View All" / per-user dropdown above the access log grid
+            PopulateAccessLogUserFilter(); 
 
             LoadAllTables();
 
@@ -123,7 +123,6 @@ namespace fileVault
             UpdateLockButtonStates();
         }
 
-        // new: get every username, used to populate the access log user filter dropdown
         private List<string> GetAllUsernames()
         {
             var usernames = new List<string>();
@@ -140,7 +139,6 @@ namespace fileVault
             return usernames;
         }
 
-        // new: fill the access log filter dropdown with "View All" plus every username
         private void PopulateAccessLogUserFilter()
         {
             cmbAccessLogUser.Items.Clear();
@@ -149,7 +147,6 @@ namespace fileVault
             cmbAccessLogUser.SelectedIndex = 0;
         }
 
-        // new: (re)load the access log grid, filtered by the dropdown's selected username
         private void LoadAccessLog()
         {
             string selected = cmbAccessLogUser.SelectedItem as string;
@@ -167,7 +164,6 @@ namespace fileVault
             }
         }
 
-        // new: reload the access log when the user picks a different filter
         private void cmbAccessLogUser_SelectedIndexChanged(object sender, EventArgs e)
         {
             LoadAccessLog();
@@ -198,7 +194,7 @@ namespace fileVault
                     new SQLiteParameter("@uid", selectedUserId)
                 );
 
-                LoadAccessLog(); // changed: keep the current user filter applied on refresh
+                LoadAccessLog(); 
             }
             else
             {
@@ -294,7 +290,7 @@ namespace fileVault
                 LoadTableIntoGrid(
                     "SELECT * FROM files WHERE owner_id = @uid ORDER BY uploaded_at DESC",
                     dgvData, new SQLiteParameter("@uid", selectedUserId));
-                LoadAccessLog(); // changed: keep the current user filter applied after a delete
+                LoadAccessLog(); 
             }
             else
             {
@@ -308,7 +304,7 @@ namespace fileVault
 
                 UserService.DeleteUser(LoginRegister.ConnectionString, userId);
 
-                PopulateAccessLogUserFilter(); // changed: refresh the dropdown since the deleted user should no longer be listed
+                PopulateAccessLogUserFilter(); 
                 LoadAllTables();
             }
         }

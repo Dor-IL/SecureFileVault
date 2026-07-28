@@ -80,7 +80,7 @@ namespace fileVault
 
         private void LoadUserData()
         {
-            // Files owned by this user, plus files someone else has shared with them (access column tells them apart)
+
             LoadIntoGrid(
                 dgvFiles,
                 @"SELECT file_id, file_name, file_size, uploaded_at, 'Owned' AS access
@@ -92,11 +92,10 @@ namespace fileVault
                   JOIN permissions p ON p.file_id = f.file_id
                   WHERE p.user_id = @uid2
                   ORDER BY uploaded_at DESC",
-                new SQLiteParameter("@uid1", _userId), // Binds the owner-side @uid1 placeholder
-                new SQLiteParameter("@uid2", _userId)  // Binds the shared-side @uid2 placeholder (same user id, different name)
+                new SQLiteParameter("@uid1", _userId), 
+                new SQLiteParameter("@uid2", _userId)  
             );
 
-            // Access log entries relevant to this user (their own actions)
             LoadIntoGrid(
                 dgvAccessLog,
                 @"SELECT log_id, action, file_id, timestamp
@@ -188,52 +187,52 @@ namespace fileVault
 
         private async void btnShare_Click(object sender, EventArgs e)
         {
-            if (dgvFiles.CurrentRow == null) // No row selected in the files grid
+            if (dgvFiles.CurrentRow == null)
             {
-                MessageBox.Show("Please select a file first."); // Tell the user to pick a file before sharing
-                return; // Nothing more to do
+                MessageBox.Show("Please select a file first."); 
+                return;
             }
 
-            int fileId = Convert.ToInt32(dgvFiles.CurrentRow.Cells["file_id"].Value); // Read the selected file's id from the grid
+            int fileId = Convert.ToInt32(dgvFiles.CurrentRow.Cells["file_id"].Value); 
 
-            string targetUsername = PromptForUsername("Share File", "Enter the username to share this file with:"); // Ask who to share with
-            if (string.IsNullOrWhiteSpace(targetUsername)) return; // User cancelled or left it blank, so abort
+            string targetUsername = PromptForUsername("Share File", "Enter the username to share this file with:"); 
+            if (string.IsNullOrWhiteSpace(targetUsername)) return; 
 
-            btnShare.Enabled = false; // Disable the button while the request is in flight
-            var (success, message) = await _vaultClient.ShareFileAsync(fileId, _userId, targetUsername.Trim()); // Send the share request to the server
-            btnShare.Enabled = true; // Re-enable the button once the request completes
+            btnShare.Enabled = false; 
+            var (success, message) = await _vaultClient.ShareFileAsync(fileId, _userId, targetUsername.Trim()); 
+            btnShare.Enabled = true; 
 
-            MessageBox.Show(success ? message : $"Share failed: {message}"); // Show the result to the user
+            MessageBox.Show(success ? message : $"Share failed: {message}");
         }
 
         private async void btnUnshare_Click(object sender, EventArgs e)
         {
-            if (dgvFiles.CurrentRow == null) // No row selected in the files grid
+            if (dgvFiles.CurrentRow == null) 
             {
-                MessageBox.Show("Please select a file first."); // Tell the user to pick a file before unsharing
-                return; // Nothing more to do
+                MessageBox.Show("Please select a file first."); 
+                return; 
             }
 
-            int fileId = Convert.ToInt32(dgvFiles.CurrentRow.Cells["file_id"].Value); // Read the selected file's id from the grid
+            int fileId = Convert.ToInt32(dgvFiles.CurrentRow.Cells["file_id"].Value); 
 
-            List<string> sharedWith = GetSharedUsernames(fileId); // Who this file is currently shared with
+            List<string> sharedWith = GetSharedUsernames(fileId); 
             if (sharedWith.Count == 0)
             {
                 MessageBox.Show("This file hasn't been shared with anyone.");
                 return;
             }
 
-            string targetUsername = PromptForSelection("Unshare File", "Choose a user to revoke access from:", sharedWith); // Pick a recipient to revoke
-            if (string.IsNullOrWhiteSpace(targetUsername)) return; // User cancelled
+            string targetUsername = PromptForSelection("Unshare File", "Choose a user to revoke access from:", sharedWith);
+            if (string.IsNullOrWhiteSpace(targetUsername)) return; 
 
-            btnUnshare.Enabled = false; // Disable the button while the request is in flight
-            var (success, message) = await _vaultClient.UnshareFileAsync(fileId, _userId, targetUsername); // Send the unshare request to the server
-            btnUnshare.Enabled = true; // Re-enable the button once the request completes
+            btnUnshare.Enabled = false; 
+            var (success, message) = await _vaultClient.UnshareFileAsync(fileId, _userId, targetUsername); 
+            btnUnshare.Enabled = true; 
 
-            MessageBox.Show(success ? message : $"Unshare failed: {message}"); // Show the result to the user
+            MessageBox.Show(success ? message : $"Unshare failed: {message}"); 
 
             LoadUserData();
-        }//
+        }
 
         private List<string> GetSharedUsernames(int fileId)
         {
@@ -254,11 +253,11 @@ namespace fileVault
                 usernames.Add(reader.GetString(0));
 
             return usernames;
-        }//
+        }
 
         private static string PromptForSelection(string title, string prompt, List<string> options)
         {
-            using var dialog = new Form // A small modal form used to pick a recipient from a fixed list
+            using var dialog = new Form 
             {
                 Text = title,
                 Width = 360,
@@ -270,7 +269,7 @@ namespace fileVault
             };
 
             var lbl = new Label { Left = 12, Top = 12, Width = 320, Text = prompt };
-            var combo = new ComboBox { Left = 12, Top = 40, Width = 320, DropDownStyle = ComboBoxStyle.DropDownList }; // DropDownList so only existing recipients can be picked
+            var combo = new ComboBox { Left = 12, Top = 40, Width = 320, DropDownStyle = ComboBoxStyle.DropDownList }; 
             combo.Items.AddRange(options.ToArray());
             combo.SelectedIndex = 0;
             var btnOk = new Button { Text = "OK", Left = 175, Width = 75, Top = 75, DialogResult = DialogResult.OK };
@@ -285,28 +284,28 @@ namespace fileVault
 
         private static string PromptForUsername(string title, string prompt)
         {
-            using var dialog = new Form // A small modal form used to collect the recipient's username
+            using var dialog = new Form 
             {
-                Text = title, // Title bar text
-                Width = 360, // Fixed dialog width
-                Height = 160, // Fixed dialog height
-                FormBorderStyle = FormBorderStyle.FixedDialog, // Prevent resizing
-                StartPosition = FormStartPosition.CenterParent, // Center over the Client form
-                MaximizeBox = false, // Hide the maximize button
-                MinimizeBox = false // Hide the minimize button
+                Text = title, 
+                Width = 360, 
+                Height = 160, 
+                FormBorderStyle = FormBorderStyle.FixedDialog, 
+                StartPosition = FormStartPosition.CenterParent, 
+                MaximizeBox = false, 
+                MinimizeBox = false 
             };
 
-            var lbl = new Label { Left = 12, Top = 12, Width = 320, Text = prompt }; // Instructional label
-            var txt = new TextBox { Left = 12, Top = 40, Width = 320 }; // Username input field
-            var btnOk = new Button { Text = "OK", Left = 175, Width = 75, Top = 75, DialogResult = DialogResult.OK }; // Confirms the input
-            var btnCancel = new Button { Text = "Cancel", Left = 257, Width = 75, Top = 75, DialogResult = DialogResult.Cancel }; // Cancels the dialog
+            var lbl = new Label { Left = 12, Top = 12, Width = 320, Text = prompt }; 
+            var txt = new TextBox { Left = 12, Top = 40, Width = 320 }; 
+            var btnOk = new Button { Text = "OK", Left = 175, Width = 75, Top = 75, DialogResult = DialogResult.OK }; 
+            var btnCancel = new Button { Text = "Cancel", Left = 257, Width = 75, Top = 75, DialogResult = DialogResult.Cancel }; 
 
-            dialog.Controls.AddRange(new Control[] { lbl, txt, btnOk, btnCancel }); // Add all controls to the dialog
-            dialog.AcceptButton = btnOk; // Enter key triggers OK
-            dialog.CancelButton = btnCancel; // Escape key triggers Cancel
+            dialog.Controls.AddRange(new Control[] { lbl, txt, btnOk, btnCancel }); 
+            dialog.AcceptButton = btnOk; 
+            dialog.CancelButton = btnCancel; 
 
-            return dialog.ShowDialog() == DialogResult.OK ? txt.Text : null; // Return the typed text, or null if cancelled
-        }
+            return dialog.ShowDialog() == DialogResult.OK ? txt.Text : null; 
+        }//
     }
 
 }

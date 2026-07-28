@@ -41,8 +41,9 @@ namespace fileVault
             tables = new List<(DataGridView, string)>
             {
                 (dgvData,       "SELECT * FROM users"),
-                (dgvAccessLog,  "SELECT * FROM access_log ORDER BY Timestamp DESC"),
             };
+
+            PopulateAccessLogUserFilter(); // new: fill the "View All" / per-user dropdown above the access log grid
 
             LoadAllTables();
 
@@ -117,7 +118,59 @@ namespace fileVault
                 LoadTableIntoGrid(sql, grid);
             }
 
+            LoadAccessLog(); // new: load access log respecting the selected user filter
+
             UpdateLockButtonStates();
+        }
+
+        // new: get every username, used to populate the access log user filter dropdown
+        private List<string> GetAllUsernames()
+        {
+            var usernames = new List<string>();
+
+            using var connection = new SQLiteConnection(LoginRegister.ConnectionString);
+            connection.Open();
+            using var command = new SQLiteCommand("SELECT username FROM users ORDER BY username", connection);
+            using var reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                usernames.Add(reader.GetString(0));
+            }
+
+            return usernames;
+        }
+
+        // new: fill the access log filter dropdown with "View All" plus every username
+        private void PopulateAccessLogUserFilter()
+        {
+            cmbAccessLogUser.Items.Clear();
+            cmbAccessLogUser.Items.Add("View All");
+            cmbAccessLogUser.Items.AddRange(GetAllUsernames().ToArray());
+            cmbAccessLogUser.SelectedIndex = 0;
+        }
+
+        // new: (re)load the access log grid, filtered by the dropdown's selected username
+        private void LoadAccessLog()
+        {
+            string selected = cmbAccessLogUser.SelectedItem as string;
+
+            if (string.IsNullOrEmpty(selected) || selected == "View All")
+            {
+                LoadTableIntoGrid("SELECT * FROM access_log ORDER BY Timestamp DESC", dgvAccessLog);
+            }
+            else
+            {
+                LoadTableIntoGrid(
+                    "SELECT * FROM access_log WHERE username = @username ORDER BY Timestamp DESC",
+                    dgvAccessLog,
+                    new SQLiteParameter("@username", selected));
+            }
+        }
+
+        // new: reload the access log when the user picks a different filter
+        private void cmbAccessLogUser_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            LoadAccessLog();
         }
 
         private void UpdateLockButtonStates()
@@ -145,7 +198,7 @@ namespace fileVault
                     new SQLiteParameter("@uid", selectedUserId)
                 );
 
-                LoadTableIntoGrid("SELECT * FROM access_log ORDER BY Timestamp DESC", dgvAccessLog);
+                LoadAccessLog(); // changed: keep the current user filter applied on refresh
             }
             else
             {
@@ -241,7 +294,7 @@ namespace fileVault
                 LoadTableIntoGrid(
                     "SELECT * FROM files WHERE owner_id = @uid ORDER BY uploaded_at DESC",
                     dgvData, new SQLiteParameter("@uid", selectedUserId));
-                LoadTableIntoGrid("SELECT * FROM access_log ORDER BY Timestamp DESC", dgvAccessLog);
+                LoadAccessLog(); // changed: keep the current user filter applied after a delete
             }
             else
             {
@@ -255,6 +308,7 @@ namespace fileVault
 
                 UserService.DeleteUser(LoginRegister.ConnectionString, userId);
 
+                PopulateAccessLogUserFilter(); // changed: refresh the dropdown since the deleted user should no longer be listed
                 LoadAllTables();
             }
         }

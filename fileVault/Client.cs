@@ -206,6 +206,83 @@ namespace fileVault
             MessageBox.Show(success ? message : $"Share failed: {message}"); // Show the result to the user
         }
 
+        private async void btnUnshare_Click(object sender, EventArgs e)
+        {
+            if (dgvFiles.CurrentRow == null) // No row selected in the files grid
+            {
+                MessageBox.Show("Please select a file first."); // Tell the user to pick a file before unsharing
+                return; // Nothing more to do
+            }
+
+            int fileId = Convert.ToInt32(dgvFiles.CurrentRow.Cells["file_id"].Value); // Read the selected file's id from the grid
+
+            List<string> sharedWith = GetSharedUsernames(fileId); // Who this file is currently shared with
+            if (sharedWith.Count == 0)
+            {
+                MessageBox.Show("This file hasn't been shared with anyone.");
+                return;
+            }
+
+            string targetUsername = PromptForSelection("Unshare File", "Choose a user to revoke access from:", sharedWith); // Pick a recipient to revoke
+            if (string.IsNullOrWhiteSpace(targetUsername)) return; // User cancelled
+
+            btnUnshare.Enabled = false; // Disable the button while the request is in flight
+            var (success, message) = await _vaultClient.UnshareFileAsync(fileId, _userId, targetUsername); // Send the unshare request to the server
+            btnUnshare.Enabled = true; // Re-enable the button once the request completes
+
+            MessageBox.Show(success ? message : $"Unshare failed: {message}"); // Show the result to the user
+
+            LoadUserData();
+        }//
+
+        private List<string> GetSharedUsernames(int fileId)
+        {
+            var usernames = new List<string>();
+
+            using var connection = new SQLiteConnection(LoginRegister.ConnectionString);
+            connection.Open();
+            using var command = new SQLiteCommand(
+                @"SELECT u.username FROM permissions p
+                  JOIN users u ON u.user_id = p.user_id
+                  WHERE p.file_id = @fid
+                  ORDER BY u.username",
+                connection);
+            command.Parameters.AddWithValue("@fid", fileId);
+
+            using var reader = command.ExecuteReader();
+            while (reader.Read())
+                usernames.Add(reader.GetString(0));
+
+            return usernames;
+        }//
+
+        private static string PromptForSelection(string title, string prompt, List<string> options)
+        {
+            using var dialog = new Form // A small modal form used to pick a recipient from a fixed list
+            {
+                Text = title,
+                Width = 360,
+                Height = 160,
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                StartPosition = FormStartPosition.CenterParent,
+                MaximizeBox = false,
+                MinimizeBox = false
+            };
+
+            var lbl = new Label { Left = 12, Top = 12, Width = 320, Text = prompt };
+            var combo = new ComboBox { Left = 12, Top = 40, Width = 320, DropDownStyle = ComboBoxStyle.DropDownList }; // DropDownList so only existing recipients can be picked
+            combo.Items.AddRange(options.ToArray());
+            combo.SelectedIndex = 0;
+            var btnOk = new Button { Text = "OK", Left = 175, Width = 75, Top = 75, DialogResult = DialogResult.OK };
+            var btnCancel = new Button { Text = "Cancel", Left = 257, Width = 75, Top = 75, DialogResult = DialogResult.Cancel };
+
+            dialog.Controls.AddRange(new Control[] { lbl, combo, btnOk, btnCancel });
+            dialog.AcceptButton = btnOk;
+            dialog.CancelButton = btnCancel;
+
+            return dialog.ShowDialog() == DialogResult.OK ? combo.SelectedItem as string : null;
+        }//
+
         private static string PromptForUsername(string title, string prompt)
         {
             using var dialog = new Form // A small modal form used to collect the recipient's username

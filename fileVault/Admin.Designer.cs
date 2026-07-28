@@ -38,6 +38,7 @@
             lblDataTable = new Label();
             dgvAccessLog = new DataGridView();
             lblAccessLogTable = new Label();
+            cmbAccessLogUser = new ComboBox(); //
             btnBack = new Button();
             ((System.ComponentModel.ISupportInitialize)dgvData).BeginInit();
             ((System.ComponentModel.ISupportInitialize)dgvAccessLog).BeginInit();
@@ -157,7 +158,18 @@
             lblAccessLogTable.Size = new Size(98, 18);
             lblAccessLogTable.TabIndex = 9;
             lblAccessLogTable.Text = "Access Log";
-            // 
+            //
+            // cmbAccessLogUser //
+            //
+            cmbAccessLogUser.DropDownStyle = ComboBoxStyle.DropDownList; //
+            cmbAccessLogUser.Font = new Font("Verdana", 9F, FontStyle.Regular, GraphicsUnit.Point, 0); //
+            cmbAccessLogUser.FormattingEnabled = true; //
+            cmbAccessLogUser.Location = new Point(608, 319); //
+            cmbAccessLogUser.Name = "cmbAccessLogUser"; //
+            cmbAccessLogUser.Size = new Size(180, 23); //
+            cmbAccessLogUser.TabIndex = 11; //
+            cmbAccessLogUser.SelectedIndexChanged += cmbAccessLogUser_SelectedIndexChanged; //
+            //
             // btnBack
             // 
             btnBack.BackColor = Color.FromArgb(212, 160, 66);
@@ -179,6 +191,7 @@
             BackColor = Color.FromArgb(110, 26, 55);
             ClientSize = new Size(800, 450);
             Controls.Add(lblAccessLogTable);
+            Controls.Add(cmbAccessLogUser); //
             Controls.Add(dgvAccessLog);
             Controls.Add(lblDataTable);
             Controls.Add(btnRefresh);
@@ -209,6 +222,7 @@
         private Label lblDataTable;
         private DataGridView dgvAccessLog;
         private Label lblAccessLogTable;
+        private ComboBox cmbAccessLogUser; //
         private Button btnBack;
     }
 }

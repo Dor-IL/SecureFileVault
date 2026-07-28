@@ -1,18 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
 using System.Data;
 using System.Data.SQLite;
-using System.Diagnostics;
-using System.Drawing;
-using System.IO;
-using System.Linq;
-using System.Net;
-using System.Net.Sockets;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows.Forms;
-using System.Security.Cryptography;
+
 namespace fileVault
 {
     public partial class Client : Form
@@ -53,7 +41,6 @@ namespace fileVault
             Color normalBack = Color.FromArgb(43, 87, 72);
             Color normalFore = Color.White;
 
-            // A lighter tint of the same green for the selected row, so it still reads clearly
             Color selectedBack = allowHighlight ? Color.FromArgb(70, 130, 110) : normalBack;
             Color selectedFore = Color.White;
 
@@ -69,7 +56,7 @@ namespace fileVault
             grid.ColumnHeadersDefaultCellStyle.SelectionBackColor = normalBack;
             grid.ColumnHeadersDefaultCellStyle.SelectionForeColor = normalFore;
 
-            grid.GridColor = Color.FromArgb(30, 60, 50); // slightly darker green for grid lines
+            grid.GridColor = Color.FromArgb(30, 60, 50);
             grid.BackgroundColor = Color.FromArgb(30, 60, 50);
 
             if (!allowHighlight)
@@ -80,7 +67,6 @@ namespace fileVault
 
         private void LoadUserData()
         {
-
             LoadIntoGrid(
                 dgvFiles,
                 @"SELECT file_id, file_name, file_size, uploaded_at, 'Owned' AS access
@@ -92,8 +78,8 @@ namespace fileVault
                   JOIN permissions p ON p.file_id = f.file_id
                   WHERE p.user_id = @uid2
                   ORDER BY uploaded_at DESC",
-                new SQLiteParameter("@uid1", _userId), 
-                new SQLiteParameter("@uid2", _userId)  
+                new SQLiteParameter("@uid1", _userId),
+                new SQLiteParameter("@uid2", _userId)
             );
 
             LoadIntoGrid(
@@ -189,33 +175,33 @@ namespace fileVault
         {
             if (dgvFiles.CurrentRow == null)
             {
-                MessageBox.Show("Please select a file first."); 
+                MessageBox.Show("Please select a file first.");
                 return;
             }
 
-            int fileId = Convert.ToInt32(dgvFiles.CurrentRow.Cells["file_id"].Value); 
+            int fileId = Convert.ToInt32(dgvFiles.CurrentRow.Cells["file_id"].Value);
 
-            string targetUsername = PromptForUsername("Share File", "Enter the username to share this file with:"); 
-            if (string.IsNullOrWhiteSpace(targetUsername)) return; 
+            string targetUsername = PromptForUsername("Share File", "Enter the username to share this file with:");
+            if (string.IsNullOrWhiteSpace(targetUsername)) return;
 
-            btnShare.Enabled = false; 
-            var (success, message) = await _vaultClient.ShareFileAsync(fileId, _userId, targetUsername.Trim()); 
-            btnShare.Enabled = true; 
+            btnShare.Enabled = false;
+            var (success, message) = await _vaultClient.ShareFileAsync(fileId, _userId, targetUsername.Trim());
+            btnShare.Enabled = true;
 
             MessageBox.Show(success ? message : $"Share failed: {message}");
         }
 
         private async void btnUnshare_Click(object sender, EventArgs e)
         {
-            if (dgvFiles.CurrentRow == null) 
+            if (dgvFiles.CurrentRow == null)
             {
-                MessageBox.Show("Please select a file first."); 
-                return; 
+                MessageBox.Show("Please select a file first.");
+                return;
             }
 
-            int fileId = Convert.ToInt32(dgvFiles.CurrentRow.Cells["file_id"].Value); 
+            int fileId = Convert.ToInt32(dgvFiles.CurrentRow.Cells["file_id"].Value);
 
-            List<string> sharedWith = GetSharedUsernames(fileId); 
+            List<string> sharedWith = GetSharedUsernames(fileId);
             if (sharedWith.Count == 0)
             {
                 MessageBox.Show("This file hasn't been shared with anyone.");
@@ -223,13 +209,13 @@ namespace fileVault
             }
 
             string targetUsername = PromptForSelection("Unshare File", "Choose a user to revoke access from:", sharedWith);
-            if (string.IsNullOrWhiteSpace(targetUsername)) return; 
+            if (string.IsNullOrWhiteSpace(targetUsername)) return;
 
-            btnUnshare.Enabled = false; 
-            var (success, message) = await _vaultClient.UnshareFileAsync(fileId, _userId, targetUsername); 
-            btnUnshare.Enabled = true; 
+            btnUnshare.Enabled = false;
+            var (success, message) = await _vaultClient.UnshareFileAsync(fileId, _userId, targetUsername);
+            btnUnshare.Enabled = true;
 
-            MessageBox.Show(success ? message : $"Unshare failed: {message}"); 
+            MessageBox.Show(success ? message : $"Unshare failed: {message}");
 
             LoadUserData();
         }
@@ -257,7 +243,7 @@ namespace fileVault
 
         private static string PromptForSelection(string title, string prompt, List<string> options)
         {
-            using var dialog = new Form 
+            using var dialog = new Form
             {
                 Text = title,
                 Width = 360,
@@ -269,7 +255,7 @@ namespace fileVault
             };
 
             var lbl = new Label { Left = 12, Top = 12, Width = 320, Text = prompt };
-            var combo = new ComboBox { Left = 12, Top = 40, Width = 320, DropDownStyle = ComboBoxStyle.DropDownList }; 
+            var combo = new ComboBox { Left = 12, Top = 40, Width = 320, DropDownStyle = ComboBoxStyle.DropDownList };
             combo.Items.AddRange(options.ToArray());
             combo.SelectedIndex = 0;
             var btnOk = new Button { Text = "OK", Left = 175, Width = 75, Top = 75, DialogResult = DialogResult.OK };
@@ -280,33 +266,31 @@ namespace fileVault
             dialog.CancelButton = btnCancel;
 
             return dialog.ShowDialog() == DialogResult.OK ? combo.SelectedItem as string : null;
-        }//
+        }
 
         private static string PromptForUsername(string title, string prompt)
         {
-            using var dialog = new Form 
+            using var dialog = new Form
             {
-                Text = title, 
-                Width = 360, 
-                Height = 160, 
-                FormBorderStyle = FormBorderStyle.FixedDialog, 
-                StartPosition = FormStartPosition.CenterParent, 
-                MaximizeBox = false, 
-                MinimizeBox = false 
+                Text = title,
+                Width = 360,
+                Height = 160,
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                StartPosition = FormStartPosition.CenterParent,
+                MaximizeBox = false,
+                MinimizeBox = false
             };
 
-            var lbl = new Label { Left = 12, Top = 12, Width = 320, Text = prompt }; 
-            var txt = new TextBox { Left = 12, Top = 40, Width = 320 }; 
-            var btnOk = new Button { Text = "OK", Left = 175, Width = 75, Top = 75, DialogResult = DialogResult.OK }; 
-            var btnCancel = new Button { Text = "Cancel", Left = 257, Width = 75, Top = 75, DialogResult = DialogResult.Cancel }; 
+            var lbl = new Label { Left = 12, Top = 12, Width = 320, Text = prompt };
+            var txt = new TextBox { Left = 12, Top = 40, Width = 320 };
+            var btnOk = new Button { Text = "OK", Left = 175, Width = 75, Top = 75, DialogResult = DialogResult.OK };
+            var btnCancel = new Button { Text = "Cancel", Left = 257, Width = 75, Top = 75, DialogResult = DialogResult.Cancel };
 
-            dialog.Controls.AddRange(new Control[] { lbl, txt, btnOk, btnCancel }); 
-            dialog.AcceptButton = btnOk; 
-            dialog.CancelButton = btnCancel; 
+            dialog.Controls.AddRange(new Control[] { lbl, txt, btnOk, btnCancel });
+            dialog.AcceptButton = btnOk;
+            dialog.CancelButton = btnCancel;
 
-            return dialog.ShowDialog() == DialogResult.OK ? txt.Text : null; 
-        }//
+            return dialog.ShowDialog() == DialogResult.OK ? txt.Text : null;
+        }
     }
-
 }
-

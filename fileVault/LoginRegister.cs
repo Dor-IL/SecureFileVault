@@ -144,7 +144,7 @@ namespace fileVault
             }
         }
 
-        private async Task HandleClientAsync(TcpClient client)
+        private async Task HandleClientAsync(TcpClient client) //
         {
             using (client)
             using (var stream = client.GetStream())
@@ -154,16 +154,16 @@ namespace fileVault
                     while (client.Connected)
                     {
                         string request = await NetworkHelper.ReceiveTextAsync(stream);
-                        string[] parts = request.Split('|');
-                        string command = parts[0];
+                        int commandEnd = request.IndexOf('|');
+                        string command = commandEnd >= 0 ? request.Substring(0, commandEnd) : request;
 
                         if (command == "UPLOAD")
                         {
-                            await HandleUploadAsync(stream, parts);
+                            await HandleUploadAsync(stream, request);
                         }
                         else if (command == "DOWNLOAD")
                         {
-                            await HandleDownloadAsync(stream, parts);
+                            await HandleDownloadAsync(stream, request);
                         }
                         else
                         {
@@ -183,10 +183,11 @@ namespace fileVault
             }
         }
 
-        private async Task HandleUploadAsync(NetworkStream stream, string[] parts)
+        private async Task HandleUploadAsync(NetworkStream stream, string request) //
         {
             try
             {
+                string[] parts = request.Split('|', 3);
                 int userId = int.Parse(parts[1]);
                 string fileName = parts[2];
 
@@ -201,8 +202,9 @@ namespace fileVault
             }
         }
 
-        private async Task HandleDownloadAsync(NetworkStream stream, string[] parts)
+        private async Task HandleDownloadAsync(NetworkStream stream, string request) //
         {
+            string[] parts = request.Split('|');
             int userId = int.Parse(parts[1]);
             int fileId = int.Parse(parts[2]);
 
@@ -218,15 +220,18 @@ namespace fileVault
             await NetworkHelper.SendMessageAsync(stream, result.data);
         }
 
-        private async Task<string> ProcessCommandAsync(string request)
+        private async Task<string> ProcessCommandAsync(string request) //
         {
-            string[] parts = request.Split('|');
-            string command = parts[0];
+            int commandEnd = request.IndexOf('|');
+            string command = commandEnd >= 0 ? request.Substring(0, commandEnd) : request;
 
             switch (command)
             {
                 case "LOGIN":
                     {
+                        string[] parts = request.Split('|');
+                        if (parts.Length != 3)
+                            return "FAIL|Invalid username or password.";
                         string username = parts[1];
                         string password = parts[2];
 
@@ -245,11 +250,26 @@ namespace fileVault
 
                 case "REGISTER":
                     {
+                        string[] parts = request.Split('|');
+                        if (parts.Length != 3)
+                            return "FAIL|Username and password cannot contain the '|' character.";
                         string username = parts[1];
                         string password = parts[2];
 
                         bool success = UserService.RegisterUser(LoginRegister.ConnectionString, username, password);
                         return success ? "OK" : "FAIL|Username already taken.";
+                    }
+
+                case "SHARE": // Handles a client's request to grant another user access to one of its files
+                    {
+                        string[] parts = request.Split('|', 4);
+                        int fileId = int.Parse(parts[1]); // Which file is being shared
+                        int ownerId = int.Parse(parts[2]); // Who is requesting the share (must be the owner)
+                        string targetUsername = parts[3]; // Username of the person to share with
+
+                        // Delegate the ownership check and permissions-table insert to FileService
+                        var (success, message) = FileService.ShareFile(LoginRegister.ConnectionString, fileId, ownerId, targetUsername);
+                        return success ? $"OK|{message}" : $"FAIL|{message}"; // Mirror the OK/FAIL protocol used by other commands
                     }
 
                 default:
@@ -331,6 +351,18 @@ namespace fileVault
             await File.WriteAllBytesAsync(savePath, fileBytes);
 
             return (true, savePath);
+        }
+
+        public async Task<(bool success, string message)> ShareFileAsync(int fileId, int ownerId, string targetUsername)
+        {
+            // Send the share request over the wire: command|fileId|ownerId|targetUsername
+            await NetworkHelper.SendTextAsync(_stream, $"SHARE|{fileId}|{ownerId}|{targetUsername}");
+            string response = await NetworkHelper.ReceiveTextAsync(_stream); // Wait for the server's OK/FAIL reply
+
+            string[] parts = response.Split('|'); // Split the "OK|message" or "FAIL|message" response
+            return parts[0] == "OK"
+                ? (true, parts.Length > 1 ? parts[1] : "Shared successfully.") // Success: pass along the server's message
+                : (false, parts.Length > 1 ? parts[1] : "Share failed."); // Failure: pass along the reason, or a default
         }
 
         public NetworkStream GetStream() => _stream;
@@ -785,6 +817,57 @@ namespace fileVault
 
                 LogEvent(conn, requestingUserId, GetUsername(conn, requestingUserId), "DOWNLOAD_SUCCESS", fileId);
                 return (true, "OK", fileName, decrypted);
+            }
+        }
+
+        public static (bool success, string message) ShareFile(
+            string connectionString, int fileId, int ownerId, string targetUsername)
+        {
+            using (var conn = new SQLiteConnection(connectionString)) // Open a fresh connection for this request
+            {
+                conn.Open(); // Actually connect to the SQLite database
+                using (var pragma = new SQLiteCommand("PRAGMA foreign_keys = ON;", conn)) // Enforce FK constraints on this connection
+                    pragma.ExecuteNonQuery(); // Run the pragma
+
+                int actualOwnerId; // Will hold the file's real owner_id from the database
+
+                using (var cmd = new SQLiteCommand("SELECT owner_id FROM files WHERE file_id = @fid", conn)) // Look up who owns the file
+                {
+                    cmd.Parameters.AddWithValue("@fid", fileId); // Bind the file id parameter
+                    var result = cmd.ExecuteScalar(); // Run the query and fetch the single owner_id value
+                    if (result == null) return (false, "File not found."); // No such file, so nothing to share
+                    actualOwnerId = Convert.ToInt32(result); // Convert the DB value to an int
+                }
+
+                if (actualOwnerId != ownerId) // Only the real owner is allowed to grant access
+                {
+                    LogEvent(conn, ownerId, GetUsername(conn, ownerId), "SHARE_DENIED", fileId); // Record the denied attempt
+                    return (false, "Only the file owner can share this file."); // Reject the request
+                }
+
+                int targetUserId; // Will hold the id of the user we're sharing with
+
+                using (var cmd = new SQLiteCommand("SELECT user_id FROM users WHERE username = @uname", conn)) // Resolve username to a user id
+                {
+                    cmd.Parameters.AddWithValue("@uname", targetUsername); // Bind the target username
+                    var result = cmd.ExecuteScalar(); // Run the lookup
+                    if (result == null) return (false, "No user with that username."); // Unknown recipient
+                    targetUserId = Convert.ToInt32(result); // Convert the DB value to an int
+                }
+
+                if (targetUserId == ownerId) // Sharing a file with its own owner is meaningless
+                    return (false, "You already own this file."); // Reject that case
+
+                using (var cmd = new SQLiteCommand( // Grant access by inserting into the permissions table
+                    "INSERT OR IGNORE INTO permissions (file_id, user_id) VALUES (@fid, @uid)", conn)) // Ignore if already shared (UNIQUE constraint)
+                {
+                    cmd.Parameters.AddWithValue("@fid", fileId); // Bind the file id
+                    cmd.Parameters.AddWithValue("@uid", targetUserId); // Bind the recipient's user id
+                    cmd.ExecuteNonQuery(); // Perform the insert
+                }
+
+                LogEvent(conn, ownerId, GetUsername(conn, ownerId), $"FILE_SHARED_WITH:{targetUsername}", fileId); // Audit-log the share
+                return (true, $"Shared with {targetUsername}."); // Report success back to the caller
             }
         }
 

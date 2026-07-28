@@ -38,6 +38,7 @@
             btnShare = new Button();
             btnRefresh = new Button();
             btnDelete = new Button();
+            btnUnshare = new Button();
             ((System.ComponentModel.ISupportInitialize)dgvFiles).BeginInit();
             ((System.ComponentModel.ISupportInitialize)dgvAccessLog).BeginInit();
             SuspendLayout();
@@ -135,7 +136,7 @@
             btnRefresh.BackColor = Color.FromArgb(230, 210, 160);
             btnRefresh.Font = new Font("Verdana", 11.25F, FontStyle.Regular, GraphicsUnit.Point, 0);
             btnRefresh.ForeColor = Color.White;
-            btnRefresh.Location = new Point(532, 43);
+            btnRefresh.Location = new Point(664, 43);
             btnRefresh.Name = "btnRefresh";
             btnRefresh.Size = new Size(94, 38);
             btnRefresh.TabIndex = 15;
@@ -148,7 +149,7 @@
             btnDelete.BackColor = Color.FromArgb(230, 210, 160);
             btnDelete.Font = new Font("Verdana", 11.25F, FontStyle.Regular, GraphicsUnit.Point, 0);
             btnDelete.ForeColor = Color.White;
-            btnDelete.Location = new Point(402, 43);
+            btnDelete.Location = new Point(533, 43);
             btnDelete.Name = "btnDelete";
             btnDelete.Size = new Size(94, 38);
             btnDelete.TabIndex = 16;
@@ -156,12 +157,26 @@
             btnDelete.UseVisualStyleBackColor = false;
             btnDelete.Click += btnDelete_Click;
             // 
+            // btnUnshare
+            // 
+            btnUnshare.BackColor = Color.FromArgb(230, 210, 160);
+            btnUnshare.Font = new Font("Verdana", 11.25F, FontStyle.Regular, GraphicsUnit.Point, 0);
+            btnUnshare.ForeColor = Color.White;
+            btnUnshare.Location = new Point(402, 43);
+            btnUnshare.Name = "btnUnshare";
+            btnUnshare.Size = new Size(94, 38);
+            btnUnshare.TabIndex = 17;
+            btnUnshare.Text = "Unshare";
+            btnUnshare.UseVisualStyleBackColor = false;
+            btnUnshare.Click += btnUnshare_Click;
+            // 
             // Client
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             BackColor = Color.FromArgb(43, 87, 72);
             ClientSize = new Size(800, 450);
+            Controls.Add(btnUnshare);
             Controls.Add(btnDelete);
             Controls.Add(btnRefresh);
             Controls.Add(btnShare);
@@ -192,5 +207,6 @@
         private Button btnShare;
         private Button btnRefresh;
         private Button btnDelete;
+        private Button btnUnshare;
     }
 }

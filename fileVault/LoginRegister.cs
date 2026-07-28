@@ -272,6 +272,18 @@ namespace fileVault
                         return success ? $"OK|{message}" : $"FAIL|{message}"; // Mirror the OK/FAIL protocol used by other commands
                     }
 
+                case "UNSHARE": // Handles a client's request to revoke another user's access to one of its files
+                    {
+                        string[] parts = request.Split('|', 4);
+                        int fileId = int.Parse(parts[1]); // Which file access is being revoked from
+                        int ownerId = int.Parse(parts[2]); // Who is requesting the unshare (must be the owner)
+                        string targetUsername = parts[3]; // Username of the person to revoke access from
+
+                        // Delegate the ownership check and permissions-table delete to FileService
+                        var (success, message) = FileService.UnshareFile(LoginRegister.ConnectionString, fileId, ownerId, targetUsername);
+                        return success ? $"OK|{message}" : $"FAIL|{message}"; // Mirror the OK/FAIL protocol used by other commands
+                    }
+
                 default:
                     return "FAIL|Unknown command.";
             }
@@ -364,6 +376,18 @@ namespace fileVault
                 ? (true, parts.Length > 1 ? parts[1] : "Shared successfully.") // Success: pass along the server's message
                 : (false, parts.Length > 1 ? parts[1] : "Share failed."); // Failure: pass along the reason, or a default
         }
+
+        public async Task<(bool success, string message)> UnshareFileAsync(int fileId, int ownerId, string targetUsername)
+        {
+            // Send the unshare request over the wire: command|fileId|ownerId|targetUsername
+            await NetworkHelper.SendTextAsync(_stream, $"UNSHARE|{fileId}|{ownerId}|{targetUsername}");
+            string response = await NetworkHelper.ReceiveTextAsync(_stream); // Wait for the server's OK/FAIL reply
+
+            string[] parts = response.Split('|'); // Split the "OK|message" or "FAIL|message" response
+            return parts[0] == "OK"
+                ? (true, parts.Length > 1 ? parts[1] : "Unshared successfully.") // Success: pass along the server's message
+                : (false, parts.Length > 1 ? parts[1] : "Unshare failed."); // Failure: pass along the reason, or a default
+        }//
 
         public NetworkStream GetStream() => _stream;
 
@@ -870,6 +894,57 @@ namespace fileVault
                 return (true, $"Shared with {targetUsername}."); // Report success back to the caller
             }
         }
+
+        public static (bool success, string message) UnshareFile(
+            string connectionString, int fileId, int ownerId, string targetUsername)
+        {
+            using (var conn = new SQLiteConnection(connectionString)) // Open a fresh connection for this request
+            {
+                conn.Open(); // Actually connect to the SQLite database
+                using (var pragma = new SQLiteCommand("PRAGMA foreign_keys = ON;", conn)) // Enforce FK constraints on this connection
+                    pragma.ExecuteNonQuery(); // Run the pragma
+
+                int actualOwnerId; // Will hold the file's real owner_id from the database
+
+                using (var cmd = new SQLiteCommand("SELECT owner_id FROM files WHERE file_id = @fid", conn)) // Look up who owns the file
+                {
+                    cmd.Parameters.AddWithValue("@fid", fileId); // Bind the file id parameter
+                    var result = cmd.ExecuteScalar(); // Run the query and fetch the single owner_id value
+                    if (result == null) return (false, "File not found."); // No such file, so nothing to unshare
+                    actualOwnerId = Convert.ToInt32(result); // Convert the DB value to an int
+                }
+
+                if (actualOwnerId != ownerId) // Only the real owner is allowed to revoke access
+                {
+                    LogEvent(conn, ownerId, GetUsername(conn, ownerId), "UNSHARE_DENIED", fileId); // Record the denied attempt
+                    return (false, "Only the file owner can unshare this file."); // Reject the request
+                }
+
+                int targetUserId; // Will hold the id of the user we're revoking access from
+
+                using (var cmd = new SQLiteCommand("SELECT user_id FROM users WHERE username = @uname", conn)) // Resolve username to a user id
+                {
+                    cmd.Parameters.AddWithValue("@uname", targetUsername); // Bind the target username
+                    var result = cmd.ExecuteScalar(); // Run the lookup
+                    if (result == null) return (false, "No user with that username."); // Unknown recipient
+                    targetUserId = Convert.ToInt32(result); // Convert the DB value to an int
+                }
+
+                if (!HasPermission(conn, fileId, targetUserId)) // Nothing to revoke if they were never shared with
+                    return (false, "That user doesn't have access to this file.");
+
+                using (var cmd = new SQLiteCommand( // Revoke access by deleting the permissions row
+                    "DELETE FROM permissions WHERE file_id=@fid AND user_id=@uid", conn))
+                {
+                    cmd.Parameters.AddWithValue("@fid", fileId); // Bind the file id
+                    cmd.Parameters.AddWithValue("@uid", targetUserId); // Bind the recipient's user id
+                    cmd.ExecuteNonQuery(); // Perform the delete
+                }
+
+                LogEvent(conn, ownerId, GetUsername(conn, ownerId), $"FILE_UNSHARED_WITH:{targetUsername}", fileId); // Audit-log the unshare
+                return (true, $"Unshared with {targetUsername}."); // Report success back to the caller
+            }
+        }//
 
         private static bool HasPermission(SQLiteConnection conn, int fileId, int userId)
         {

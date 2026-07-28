@@ -1,24 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
 using System.Data;
 using System.Data.SQLite;
-using System.Diagnostics;
-using System.Drawing;
-using System.IO;
-using System.Linq;
-using System.Net;
-using System.Net.Sockets;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows.Forms;
-using System.Security.Cryptography;
 
 namespace fileVault
 {
     public partial class Admin : Form
     {
-
         private List<(DataGridView Grid, string Sql)> tables;
 
         private bool viewingUserFiles = false;
@@ -43,7 +29,7 @@ namespace fileVault
                 (dgvData,       "SELECT * FROM users"),
             };
 
-            PopulateAccessLogUserFilter(); 
+            PopulateAccessLogUserFilter();
 
             LoadAllTables();
 
@@ -73,7 +59,6 @@ namespace fileVault
             Color normalBack = Color.FromArgb(110, 26, 55);
             Color normalFore = Color.White;
 
-            // Lighter tint of the same wine tone, so selection is still visible
             Color selectedBack = allowHighlight ? Color.FromArgb(160, 50, 85) : normalBack;
             Color selectedFore = Color.White;
 
@@ -89,7 +74,7 @@ namespace fileVault
             grid.ColumnHeadersDefaultCellStyle.SelectionBackColor = normalBack;
             grid.ColumnHeadersDefaultCellStyle.SelectionForeColor = normalFore;
 
-            grid.GridColor = Color.FromArgb(75, 16, 38); // darker wine for grid lines
+            grid.GridColor = Color.FromArgb(75, 16, 38);
             grid.BackgroundColor = Color.FromArgb(75, 16, 38);
 
             if (!allowHighlight)
@@ -118,7 +103,7 @@ namespace fileVault
                 LoadTableIntoGrid(sql, grid);
             }
 
-            LoadAccessLog(); // new: load access log respecting the selected user filter
+            LoadAccessLog();
 
             UpdateLockButtonStates();
         }
@@ -171,7 +156,6 @@ namespace fileVault
 
         private void UpdateLockButtonStates()
         {
-
             if (dgvData.CurrentRow == null || viewingUserFiles)
             {
                 return;
@@ -194,7 +178,7 @@ namespace fileVault
                     new SQLiteParameter("@uid", selectedUserId)
                 );
 
-                LoadAccessLog(); 
+                LoadAccessLog();
             }
             else
             {
@@ -290,7 +274,7 @@ namespace fileVault
                 LoadTableIntoGrid(
                     "SELECT * FROM files WHERE owner_id = @uid ORDER BY uploaded_at DESC",
                     dgvData, new SQLiteParameter("@uid", selectedUserId));
-                LoadAccessLog(); 
+                LoadAccessLog();
             }
             else
             {
@@ -304,7 +288,7 @@ namespace fileVault
 
                 UserService.DeleteUser(LoginRegister.ConnectionString, userId);
 
-                PopulateAccessLogUserFilter(); 
+                PopulateAccessLogUserFilter();
                 LoadAllTables();
             }
         }

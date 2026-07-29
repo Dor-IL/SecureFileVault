@@ -59,7 +59,7 @@ namespace fileVault
                     {
                         if (!reader.Read())
                         {
-                            LogEvent(conn, null, username, "LOGIN_FAILED", null);
+                            Db.LogEvent(conn, null, username, "LOGIN_FAILED", null);
                             return LoginResult.InvalidCredentials;
                         }
 
@@ -73,7 +73,7 @@ namespace fileVault
                         if (isLocked)
                         {
                             reader.Close();
-                            LogEvent(conn, id, username, "LOGIN_FAILED", null);
+                            Db.LogEvent(conn, id, username, "LOGIN_FAILED", null);
                             return LoginResult.AccountLocked;
                         }
 
@@ -83,7 +83,7 @@ namespace fileVault
                             if (DateTime.UtcNow < lockedUntil)
                             {
                                 reader.Close();
-                                LogEvent(conn, id, username, "LOGIN_FAILED", null);
+                                Db.LogEvent(conn, id, username, "LOGIN_FAILED", null);
                                 return LoginResult.AccountLocked;
                             }
                         }
@@ -95,14 +95,14 @@ namespace fileVault
                         if (ok)
                         {
                             ResetFailedAttempts(conn, id);
-                            LogEvent(conn, id, username, "LOGIN_SUCCESS", null);
+                            Db.LogEvent(conn, id, username, "LOGIN_SUCCESS", null);
                             userId = id;
                             return LoginResult.Success;
                         }
                         else
                         {
                             RegisterFailedAttempt(conn, id, failedAttempts + 1);
-                            LogEvent(conn, id, username, "LOGIN_FAILED", null);
+                            Db.LogEvent(conn, id, username, "LOGIN_FAILED", null);
                             return LoginResult.InvalidCredentials;
                         }
                     }
@@ -166,7 +166,7 @@ namespace fileVault
                     cmd.ExecuteNonQuery();
                 }
 
-                LogEvent(conn, userId, GetUsername(conn, userId), "ADMIN_LOCK", null);
+                Db.LogEvent(conn, userId, Db.GetUsername(conn, userId), "ADMIN_LOCK", null);
             }
         }
 
@@ -186,7 +186,7 @@ namespace fileVault
                     cmd.ExecuteNonQuery();
                 }
 
-                LogEvent(conn, userId, GetUsername(conn, userId), "ADMIN_UNLOCK", null);
+                Db.LogEvent(conn, userId, Db.GetUsername(conn, userId), "ADMIN_UNLOCK", null);
             }
         }
 
@@ -198,7 +198,7 @@ namespace fileVault
                 using (var pragma = new SQLiteCommand("PRAGMA foreign_keys = ON;", conn))
                     pragma.ExecuteNonQuery();
 
-                string deletedUsername = GetUsername(conn, userId);
+                string deletedUsername = Db.GetUsername(conn, userId);
 
                 using (var tx = conn.BeginTransaction())
                 {
@@ -236,7 +236,7 @@ namespace fileVault
 
                         tx.Commit();
 
-                        LogEvent(conn, null, deletedUsername, "USER_DELETED", null);
+                        Db.LogEvent(conn, null, deletedUsername, "USER_DELETED", null);
 
                         foreach (var path in filePaths)
                         {
@@ -277,7 +277,7 @@ namespace fileVault
 
                 if (requestingUserId.HasValue && ownerId != requestingUserId.Value)
                 {
-                    LogEvent(conn, requestingUserId, GetUsername(conn, requestingUserId.Value), "DELETE_DENIED", fileId);
+                    Db.LogEvent(conn, requestingUserId, Db.GetUsername(conn, requestingUserId.Value), "DELETE_DENIED", fileId);
                     return false;
                 }
 
@@ -294,36 +294,11 @@ namespace fileVault
                     cmd.ExecuteNonQuery();
                 }
 
-                LogEvent(conn, ownerId, GetUsername(conn, ownerId), "FILE_DELETED", null);
+                Db.LogEvent(conn, ownerId, Db.GetUsername(conn, ownerId), "FILE_DELETED", null);
 
                 try { if (File.Exists(storedPath)) File.Delete(storedPath); } catch { }
 
                 return true;
-            }
-        }
-
-        private static void LogEvent(SQLiteConnection conn, int? userId, string username, string action, int? fileId)
-        {
-            const string sql = @"INSERT INTO access_log (user_id, username, action, file_id)
-                                        VALUES (@userId, @username, @action, @fileId);";
-            using (var cmd = new SQLiteCommand(sql, conn))
-            {
-                cmd.Parameters.AddWithValue("@userId", (object)userId ?? DBNull.Value);
-                cmd.Parameters.AddWithValue("@username", (object)username ?? DBNull.Value);
-                cmd.Parameters.AddWithValue("@action", action);
-                cmd.Parameters.AddWithValue("@fileId", (object)fileId ?? DBNull.Value);
-
-                cmd.ExecuteNonQuery();
-            }
-        }
-
-        private static string GetUsername(SQLiteConnection conn, int userId)
-        {
-            using (var cmd = new SQLiteCommand("SELECT username FROM users WHERE user_id = @id", conn))
-            {
-                cmd.Parameters.AddWithValue("@id", userId);
-                var result = cmd.ExecuteScalar();
-                return result?.ToString();
             }
         }
     }

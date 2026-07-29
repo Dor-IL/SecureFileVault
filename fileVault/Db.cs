@@ -79,5 +79,27 @@ namespace fileVault
                     command.ExecuteNonQuery();
             }
         }
+
+        // Shared by FileService and UserService, which both write to access_log and need the
+        // username for a user_id when logging. These were previously copy-pasted (slightly
+        // differently formatted) in each class; consolidated here to remove the duplication.
+        public static void LogEvent(SQLiteConnection conn, int? userId, string username, string action, int? fileId)
+        {
+            const string sql = @"INSERT INTO access_log (user_id, username, action, file_id)
+                              VALUES (@userId, @username, @action, @fileId);";
+            using var cmd = new SQLiteCommand(sql, conn);
+            cmd.Parameters.AddWithValue("@userId", (object)userId ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@username", (object)username ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@action", action);
+            cmd.Parameters.AddWithValue("@fileId", (object)fileId ?? DBNull.Value);
+            cmd.ExecuteNonQuery();
+        }
+
+        public static string GetUsername(SQLiteConnection conn, int userId)
+        {
+            using var cmd = new SQLiteCommand("SELECT username FROM users WHERE user_id = @id", conn);
+            cmd.Parameters.AddWithValue("@id", userId);
+            return cmd.ExecuteScalar()?.ToString();
+        }
     }
 }

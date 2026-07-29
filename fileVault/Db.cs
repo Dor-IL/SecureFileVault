@@ -64,14 +64,9 @@ namespace fileVault
                 using (var pragmaCommand = new SQLiteCommand("PRAGMA foreign_keys = ON;", connection))
                     pragmaCommand.ExecuteNonQuery();
 
-                // Perf: WAL lets readers (grid refreshes) run concurrently with writers (uploads/logs)
-                // instead of blocking on the single database-wide lock used by the default journal mode.
-                // The setting is stored in the database file itself, so it only needs to be applied once here.
                 using (var walCommand = new SQLiteCommand("PRAGMA journal_mode = WAL;", connection))
                     walCommand.ExecuteNonQuery();
 
-                // Perf: NORMAL is safe under WAL (still crash-consistent) and avoids an fsync on every
-                // transaction commit, which is the dominant cost of small, frequent writes like access-log inserts.
                 using (var syncCommand = new SQLiteCommand("PRAGMA synchronous = NORMAL;", connection))
                     syncCommand.ExecuteNonQuery();
 
@@ -80,9 +75,6 @@ namespace fileVault
             }
         }
 
-        // Shared by FileService and UserService, which both write to access_log and need the
-        // username for a user_id when logging. These were previously copy-pasted (slightly
-        // differently formatted) in each class; consolidated here to remove the duplication.
         public static void LogEvent(SQLiteConnection conn, int? userId, string username, string action, int? fileId)
         {
             const string sql = @"INSERT INTO access_log (user_id, username, action, file_id)

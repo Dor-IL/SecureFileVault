@@ -6,10 +6,6 @@ namespace fileVault
 
         const string DatabaseFileName = "database.db";
 
-        // Perf: build the connection string once instead of re-running Path.Combine/string-interpolation on
-        // every call (this is read on nearly every DB operation in the app). Pooling=True lets the many
-        // short-lived SQLiteConnections used throughout the app reuse an underlying connection instead of
-        // paying file-open overhead each time.
         public static readonly string ConnectionString =
            $"Data Source={Path.Combine(Application.StartupPath, DatabaseFileName)};Version=3;Pooling=True;";
 

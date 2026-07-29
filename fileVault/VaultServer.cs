@@ -88,7 +88,7 @@ namespace fileVault
 
                 byte[] fileData = await NetworkHelper.ReceiveMessageAsync(stream);
 
-                int fileId = FileService.SaveNewFile(LoginRegister.ConnectionString, userId, fileName, fileData);
+                int fileId = await FileService.SaveNewFileAsync(LoginRegister.ConnectionString, userId, fileName, fileData);
                 await NetworkHelper.SendTextAsync(stream, $"OK|{fileId}");
             }
             catch (Exception ex)
@@ -103,7 +103,7 @@ namespace fileVault
             int userId = int.Parse(parts[1]);
             int fileId = int.Parse(parts[2]);
 
-            var result = FileService.GetFileForDownload(LoginRegister.ConnectionString, fileId, userId);
+            var result = await FileService.GetFileForDownloadAsync(LoginRegister.ConnectionString, fileId, userId);
 
             if (!result.allowed)
             {

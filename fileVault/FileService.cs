@@ -8,7 +8,7 @@ namespace fileVault
         public static string StorageDirectory =>
             Path.Combine(Application.StartupPath, "VaultStorage");
 
-        public static int SaveNewFile(string connectionString, int ownerId, string fileName, byte[] plainData)
+        public static async Task<int> SaveNewFileAsync(string connectionString, int ownerId, string fileName, byte[] plainData)
         {
             Directory.CreateDirectory(StorageDirectory);
 
@@ -19,7 +19,9 @@ namespace fileVault
 
             string storedFileName = $"{Guid.NewGuid()}.enc";
             string storedPath = Path.Combine(StorageDirectory, storedFileName);
-            File.WriteAllBytes(storedPath, encrypted);
+            // Perf: async disk write frees the thread-pool thread handling this client while the OS
+            // does the write, instead of blocking it for the duration of a (potentially large) file write.
+            await File.WriteAllBytesAsync(storedPath, encrypted);
 
             string keyStore = $"{Convert.ToBase64String(iv)}:{Convert.ToBase64String(key)}";
 
@@ -44,7 +46,7 @@ namespace fileVault
             }
         }
 
-        public static (bool allowed, string message, string fileName, byte[] data) GetFileForDownload(
+        public static async Task<(bool allowed, string message, string fileName, byte[] data)> GetFileForDownloadAsync(
             string connectionString, int fileId, int requestingUserId)
         {
             using (var conn = new SQLiteConnection(connectionString))
@@ -82,7 +84,8 @@ namespace fileVault
                 byte[] iv = Convert.FromBase64String(parts[0]);
                 byte[] key = Convert.FromBase64String(parts[1]);
 
-                byte[] encrypted = File.ReadAllBytes(storedPath);
+                // Perf: async disk read for the same reason as the async write above.
+                byte[] encrypted = await File.ReadAllBytesAsync(storedPath);
                 byte[] decrypted = Decrypt(encrypted, key, iv);
 
                 LogEvent(conn, requestingUserId, GetUsername(conn, requestingUserId), "DOWNLOAD_SUCCESS", fileId);
@@ -203,28 +206,22 @@ namespace fileVault
             }
         }
 
+        // Perf: EncryptCbc/DecryptCbc do the whole buffer in one call instead of routing it through a
+        // MemoryStream + CryptoStream pipeline. Same algorithm/mode/padding (Aes.Create() defaults to
+        // CBC + PKCS7, which is exactly what EncryptCbc/DecryptCbc use by default), just fewer allocations
+        // and copies for what is otherwise an in-memory, non-streaming operation.
         private static byte[] Encrypt(byte[] data, byte[] key, byte[] iv)
         {
             using var aes = Aes.Create();
             aes.Key = key;
-            aes.IV = iv;
-            using var encryptor = aes.CreateEncryptor();
-            using var ms = new MemoryStream();
-            using (var cs = new CryptoStream(ms, encryptor, CryptoStreamMode.Write))
-                cs.Write(data, 0, data.Length);
-            return ms.ToArray();
+            return aes.EncryptCbc(data, iv);
         }
 
         private static byte[] Decrypt(byte[] data, byte[] key, byte[] iv)
         {
             using var aes = Aes.Create();
             aes.Key = key;
-            aes.IV = iv;
-            using var decryptor = aes.CreateDecryptor();
-            using var ms = new MemoryStream();
-            using (var cs = new CryptoStream(ms, decryptor, CryptoStreamMode.Write))
-                cs.Write(data, 0, data.Length);
-            return ms.ToArray();
+            return aes.DecryptCbc(data, iv);
         }
 
         private static void LogEvent(SQLiteConnection conn, int? userId, string username, string action, int? fileId)

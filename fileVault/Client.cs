@@ -1,4 +1,3 @@
-using System.Data;
 using System.Data.SQLite;
 
 namespace fileVault
@@ -19,55 +18,15 @@ namespace fileVault
 
             lblClient.Text = $"Secure files vault - logged in as {_username}";
 
-            StyleGrid(dgvFiles);
-            StyleGrid(dgvAccessLog, false);
+            GridStyler.Style(dgvFiles, Color.FromArgb(43, 87, 72), Color.FromArgb(70, 130, 110), Color.FromArgb(30, 60, 50));
+            GridStyler.Style(dgvAccessLog, Color.FromArgb(43, 87, 72), Color.FromArgb(70, 130, 110), Color.FromArgb(30, 60, 50), false);
 
             LoadUserData();
         }
 
-        private void StyleGrid(DataGridView grid, bool allowHighlight = true)
-        {
-            grid.ReadOnly = true;
-            grid.AllowUserToAddRows = false;
-            grid.AllowUserToDeleteRows = false;
-            grid.RowHeadersVisible = false;
-            grid.AllowUserToResizeColumns = false;
-            grid.AllowUserToResizeRows = false;
-            grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
-
-            grid.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
-            grid.MultiSelect = false;
-
-            Color normalBack = Color.FromArgb(43, 87, 72);
-            Color normalFore = Color.White;
-
-            Color selectedBack = allowHighlight ? Color.FromArgb(70, 130, 110) : normalBack;
-            Color selectedFore = Color.White;
-
-            grid.DefaultCellStyle.SelectionBackColor = selectedBack;
-            grid.DefaultCellStyle.SelectionForeColor = selectedFore;
-            grid.DefaultCellStyle.BackColor = normalBack;
-            grid.DefaultCellStyle.ForeColor = normalFore;
-
-            grid.EnableHeadersVisualStyles = false;
-            grid.ColumnHeadersDefaultCellStyle.BackColor = normalBack;
-            grid.ColumnHeadersDefaultCellStyle.ForeColor = normalFore;
-            grid.ColumnHeadersDefaultCellStyle.Font = new Font(grid.Font, FontStyle.Bold);
-            grid.ColumnHeadersDefaultCellStyle.SelectionBackColor = normalBack;
-            grid.ColumnHeadersDefaultCellStyle.SelectionForeColor = normalFore;
-
-            grid.GridColor = Color.FromArgb(30, 60, 50);
-            grid.BackgroundColor = Color.FromArgb(30, 60, 50);
-
-            if (!allowHighlight)
-            {
-                grid.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
-            }
-        }
-
         private void LoadUserData()
         {
-            LoadIntoGrid(
+            GridDataLoader.Load(
                 dgvFiles,
                 @"SELECT file_id, file_name, file_size, uploaded_at, 'Owned' AS access
                   FROM files
@@ -82,7 +41,7 @@ namespace fileVault
                 new SQLiteParameter("@uid2", _userId)
             );
 
-            LoadIntoGrid(
+            GridDataLoader.Load(
                 dgvAccessLog,
                 @"SELECT log_id, action, file_id, timestamp
                   FROM access_log
@@ -90,19 +49,6 @@ namespace fileVault
                   ORDER BY timestamp DESC",
                 new SQLiteParameter("@uid", _userId)
             );
-        }
-
-        private void LoadIntoGrid(DataGridView grid, string sql, params SQLiteParameter[] parameters)
-        {
-            using var connection = new SQLiteConnection(LoginRegister.ConnectionString);
-            using var command = new SQLiteCommand(sql, connection);
-            if (parameters != null) command.Parameters.AddRange(parameters);
-
-            using var adapter = new SQLiteDataAdapter(command);
-            var table = new DataTable();
-            adapter.Fill(table);
-
-            grid.DataSource = table;
         }
 
         private async void btnRefresh_Click(object sender, EventArgs e)

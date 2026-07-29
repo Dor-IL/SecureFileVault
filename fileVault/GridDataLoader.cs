@@ -3,8 +3,6 @@ using System.Data.SQLite;
 
 namespace fileVault
 {
-    // Extracted from Admin.cs (LoadTableIntoGrid) and Client.cs (LoadIntoGrid), which had identical
-    // bodies (just swapped parameter order). Consolidated here to remove the duplication.
     static class GridDataLoader
     {
         public static void Load(DataGridView grid, string sql, params SQLiteParameter[] parameters)

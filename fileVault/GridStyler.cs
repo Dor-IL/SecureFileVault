@@ -1,8 +1,5 @@
 namespace fileVault
 {
-    // Extracted from Admin.cs/Client.cs, which each had an identical StyleGrid method that only
-    // differed by their three theme colors (Admin = maroon, Client = green). Consolidated here to
-    // remove the duplication; callers pass their own theme colors so the rendered result is unchanged.
     static class GridStyler
     {
         public static void Style(DataGridView grid, Color baseColor, Color highlightColor, Color lineColor, bool allowHighlight = true)

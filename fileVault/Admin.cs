@@ -76,26 +76,9 @@ namespace fileVault
             }
             else if (columnName == "file_size")
             {
-                e.Value = FormatFileSize(Convert.ToInt64(e.Value));
+                e.Value = FileSizeFormatter.Format(Convert.ToInt64(e.Value));
                 e.FormattingApplied = true;
             }
-        }
-
-        private static string FormatFileSize(long bytes)
-        {
-            string[] units = { "B", "KB", "MB", "GB" };
-            double size = bytes;
-            int unitIndex = 0;
-
-            while (size >= 1024 && unitIndex < units.Length - 1)
-            {
-                size /= 1024;
-                unitIndex++;
-            }
-
-            return unitIndex == 0
-                ? $"{bytes} {units[unitIndex]}"
-                : $"{size:0.##} {units[unitIndex]}";
         }
 
         private void StyleButton(Button btn)

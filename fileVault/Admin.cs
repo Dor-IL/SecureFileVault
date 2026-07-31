@@ -106,7 +106,12 @@ namespace fileVault
 
         private void UpdateLockButtonStates()
         {
-            if (dgvData.CurrentRow == null || viewingUserFiles)
+            // dgvData.SelectionChanged fires while DataSource is being swapped (e.g. Back button
+            // switching it from the files table back to the users table), including a transient
+            // moment where the old table's columns are still attached. Bail out unless the
+            // is_locked column (users table only) is actually present, otherwise Cells["is_locked"]
+            // throws "Column named is_locked cannot be found."
+            if (dgvData.CurrentRow == null || viewingUserFiles || !dgvData.Columns.Contains("is_locked"))
             {
                 return;
             }

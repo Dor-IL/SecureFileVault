@@ -72,10 +72,16 @@ namespace fileVault
 
         private void PopulateAccessLogUserFilter()
         {
+            // Keep whichever user was selected (if they still exist) instead of always resetting
+            // to "View All", so refreshing the list doesn't clear the filter the admin was using.
+            string previouslySelected = cmbAccessLogUser.SelectedItem as string;
+
             cmbAccessLogUser.Items.Clear();
             cmbAccessLogUser.Items.Add("View All");
             cmbAccessLogUser.Items.AddRange(GetAllUsernames().ToArray());
-            cmbAccessLogUser.SelectedIndex = 0;
+
+            int restoredIndex = previouslySelected != null ? cmbAccessLogUser.Items.IndexOf(previouslySelected) : -1;
+            cmbAccessLogUser.SelectedIndex = restoredIndex >= 0 ? restoredIndex : 0;
         }
 
         private void LoadAccessLog()
@@ -116,6 +122,8 @@ namespace fileVault
 
         private void btnRefresh_Click(object sender, EventArgs e)
         {
+            PopulateAccessLogUserFilter();
+
             if (viewingUserFiles && selectedUserId != null)
             {
                 GridDataLoader.Load(

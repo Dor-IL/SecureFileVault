@@ -1,4 +1,5 @@
 using System.Data.SQLite;
+using System.Globalization;
 
 namespace fileVault
 {
@@ -25,7 +26,7 @@ namespace fileVault
 
             tables = new List<(DataGridView, string)>
             {
-                (dgvData,       "SELECT * FROM users"),
+                (dgvData,       UsersQuery),
             };
 
             PopulateAccessLogUserFilter();
@@ -33,6 +34,65 @@ namespace fileVault
             LoadAllTables();
 
             dgvData.SelectionChanged += (s, e) => UpdateLockButtonStates();
+            dgvData.CellFormatting += dgvData_CellFormatting;
+        }
+
+        private const string UsersQuery =
+            "SELECT user_id, username, failed_attempts, locked_until, is_locked, created_at FROM users";
+
+        private const string UserFilesQuery = @"
+            SELECT f.file_id, f.owner_id, f.file_name, f.file_size, f.uploaded_at, 'Owner' AS ownership
+            FROM files f
+            WHERE f.owner_id = @uid
+
+            UNION ALL
+
+            SELECT f.file_id, f.owner_id, f.file_name, f.file_size, f.uploaded_at, 'Shared' AS ownership
+            FROM files f
+            JOIN permissions p ON p.file_id = f.file_id
+            WHERE p.user_id = @uid
+
+            ORDER BY uploaded_at DESC";
+
+        private void dgvData_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
+        {
+            if (e.Value == null || e.Value == DBNull.Value)
+            {
+                return;
+            }
+
+            string columnName = dgvData.Columns[e.ColumnIndex].Name;
+
+            if (columnName == "locked_until")
+            {
+                if (DateTime.TryParse(e.Value.ToString(), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTime lockedUntilUtc))
+                {
+                    e.Value = lockedUntilUtc.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
+                    e.FormattingApplied = true;
+                }
+            }
+            else if (columnName == "file_size")
+            {
+                e.Value = FormatFileSize(Convert.ToInt64(e.Value));
+                e.FormattingApplied = true;
+            }
+        }
+
+        private static string FormatFileSize(long bytes)
+        {
+            string[] units = { "B", "KB", "MB", "GB" };
+            double size = bytes;
+            int unitIndex = 0;
+
+            while (size >= 1024 && unitIndex < units.Length - 1)
+            {
+                size /= 1024;
+                unitIndex++;
+            }
+
+            return unitIndex == 0
+                ? $"{bytes} {units[unitIndex]}"
+                : $"{size:0.##} {units[unitIndex]}";
         }
 
         private void StyleButton(Button btn)
@@ -106,11 +166,6 @@ namespace fileVault
 
         private void UpdateLockButtonStates()
         {
-            // dgvData.SelectionChanged fires while DataSource is being swapped (e.g. Back button
-            // switching it from the files table back to the users table), including a transient
-            // moment where the old table's columns are still attached. Bail out unless the
-            // is_locked column (users table only) is actually present, otherwise Cells["is_locked"]
-            // throws "Column named is_locked cannot be found."
             if (dgvData.CurrentRow == null || viewingUserFiles || !dgvData.Columns.Contains("is_locked"))
             {
                 return;
@@ -131,7 +186,7 @@ namespace fileVault
             {
                 GridDataLoader.Load(
                     dgvData,
-                    "SELECT * FROM files WHERE owner_id = @uid ORDER BY uploaded_at DESC",
+                    UserFilesQuery,
                     new SQLiteParameter("@uid", selectedUserId)
                 );
 
@@ -139,7 +194,7 @@ namespace fileVault
             }
             else
             {
-                LoadAllTables();
+                ReloadUsersPreservingSelection();
             }
         }
 
@@ -157,7 +212,7 @@ namespace fileVault
 
             GridDataLoader.Load(
                 dgvData,
-                "SELECT * FROM files WHERE owner_id = @uid ORDER BY uploaded_at DESC",
+                UserFilesQuery,
                 new SQLiteParameter("@uid", selectedUserId)
             );
 
@@ -171,16 +226,45 @@ namespace fileVault
 
         private void btnBack_Click(object sender, EventArgs e)
         {
-            viewingUserFiles = false;
-            selectedUserId = null;
-
             lblDataTable.Text = "Users";
 
             btnBack.Visible = false;
             btnViewFiles.Visible = true;
             btnLock.Visible = true;
             btnUnlock.Visible = true;
+
+            ReloadUsersPreservingSelection();
+        }
+
+        private void ReloadUsersPreservingSelection()
+        {
+            object userIdToReselect = viewingUserFiles
+                ? selectedUserId
+                : dgvData.CurrentRow?.Cells["user_id"].Value;
+
+            viewingUserFiles = false;
+            selectedUserId = null;
+
             LoadAllTables();
+
+            ReselectUserRow(userIdToReselect);
+        }
+
+        private void ReselectUserRow(object userId)
+        {
+            if (userId == null)
+            {
+                return;
+            }
+
+            foreach (DataGridViewRow row in dgvData.Rows)
+            {
+                if (userId.Equals(row.Cells["user_id"].Value))
+                {
+                    dgvData.CurrentCell = row.Cells[0];
+                    break;
+                }
+            }
         }
 
         private void btnLock_Click(object sender, EventArgs e)
@@ -193,7 +277,7 @@ namespace fileVault
 
             int userId = Convert.ToInt32(dgvData.CurrentRow.Cells["user_id"].Value);
             UserService.LockUserIndefinitely(LoginRegister.ConnectionString, userId);
-            LoadAllTables();
+            ReloadUsersPreservingSelection();
         }
 
         private void btnUnlock_Click(object sender, EventArgs e)
@@ -206,7 +290,7 @@ namespace fileVault
 
             int userId = Convert.ToInt32(dgvData.CurrentRow.Cells["user_id"].Value);
             UserService.UnlockUser(LoginRegister.ConnectionString, userId);
-            LoadAllTables();
+            ReloadUsersPreservingSelection();
         }
 
         private void btnDelete_Click(object sender, EventArgs e)
@@ -230,7 +314,7 @@ namespace fileVault
 
                 GridDataLoader.Load(
                     dgvData,
-                    "SELECT * FROM files WHERE owner_id = @uid ORDER BY uploaded_at DESC",
+                    UserFilesQuery,
                     new SQLiteParameter("@uid", selectedUserId));
                 LoadAccessLog();
             }
@@ -247,7 +331,7 @@ namespace fileVault
                 UserService.DeleteUser(LoginRegister.ConnectionString, userId);
 
                 PopulateAccessLogUserFilter();
-                LoadAllTables();
+                ReloadUsersPreservingSelection();
             }
         }
     }

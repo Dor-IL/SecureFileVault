@@ -41,18 +41,21 @@ namespace fileVault
             "SELECT user_id, username, failed_attempts, locked_until, is_locked, created_at FROM users";
 
         private const string UserFilesQuery = @"
-            SELECT f.file_id, f.owner_id, f.file_name, f.file_size, f.uploaded_at, 'Owner' AS ownership
+            SELECT f.file_id, f.owner_id, f.file_name, f.file_size, f.uploaded_at, 'Owned' AS access
             FROM files f
-            WHERE f.owner_id = @uid
+            WHERE f.owner_id = @uid1
 
-            UNION ALL
+            UNION
 
-            SELECT f.file_id, f.owner_id, f.file_name, f.file_size, f.uploaded_at, 'Shared' AS ownership
+            SELECT f.file_id, f.owner_id, f.file_name, f.file_size, f.uploaded_at, 'Shared' AS access
             FROM files f
             JOIN permissions p ON p.file_id = f.file_id
-            WHERE p.user_id = @uid
+            WHERE p.user_id = @uid2
 
             ORDER BY uploaded_at DESC";
+
+        private static SQLiteParameter[] UserFilesParams(object userId) =>
+            new[] { new SQLiteParameter("@uid1", userId), new SQLiteParameter("@uid2", userId) };
 
         private void dgvData_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
         {
@@ -184,11 +187,7 @@ namespace fileVault
 
             if (viewingUserFiles && selectedUserId != null)
             {
-                GridDataLoader.Load(
-                    dgvData,
-                    UserFilesQuery,
-                    new SQLiteParameter("@uid", selectedUserId)
-                );
+                GridDataLoader.Load(dgvData, UserFilesQuery, UserFilesParams(selectedUserId));
 
                 LoadAccessLog();
             }
@@ -210,11 +209,7 @@ namespace fileVault
             string selectedUsername = dgvData.CurrentRow.Cells["username"].Value.ToString();
             viewingUserFiles = true;
 
-            GridDataLoader.Load(
-                dgvData,
-                UserFilesQuery,
-                new SQLiteParameter("@uid", selectedUserId)
-            );
+            GridDataLoader.Load(dgvData, UserFilesQuery, UserFilesParams(selectedUserId));
 
             lblDataTable.Text = $"Files - {selectedUsername}";
 
@@ -305,6 +300,13 @@ namespace fileVault
             {
                 int fileId = Convert.ToInt32(dgvData.CurrentRow.Cells["file_id"].Value);
                 string fileName = dgvData.CurrentRow.Cells["file_name"].Value.ToString();
+                string access = dgvData.CurrentRow.Cells["access"].Value.ToString();
+
+                if (access == "Shared")
+                {
+                    MessageBox.Show("This file belongs to another user. Delete it from that user's own file list instead.");
+                    return;
+                }
 
                 var confirm = MessageBox.Show($"Delete file '{fileName}'?", "Confirm",
                     MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
@@ -312,10 +314,7 @@ namespace fileVault
 
                 UserService.DeleteFile(LoginRegister.ConnectionString, fileId);
 
-                GridDataLoader.Load(
-                    dgvData,
-                    UserFilesQuery,
-                    new SQLiteParameter("@uid", selectedUserId));
+                GridDataLoader.Load(dgvData, UserFilesQuery, UserFilesParams(selectedUserId));
                 LoadAccessLog();
             }
             else

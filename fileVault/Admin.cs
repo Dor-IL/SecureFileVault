@@ -72,8 +72,6 @@ namespace fileVault
 
         private void PopulateAccessLogUserFilter()
         {
-            // Keep whichever user was selected (if they still exist) instead of always resetting
-            // to "View All", so refreshing the list doesn't clear the filter the admin was using.
             string previouslySelected = cmbAccessLogUser.SelectedItem as string;
 
             cmbAccessLogUser.Items.Clear();

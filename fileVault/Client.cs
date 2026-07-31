@@ -21,7 +21,20 @@ namespace fileVault
             GridStyler.Style(dgvFiles, Color.FromArgb(43, 87, 72), Color.FromArgb(70, 130, 110), Color.FromArgb(30, 60, 50));
             GridStyler.Style(dgvAccessLog, Color.FromArgb(43, 87, 72), Color.FromArgb(70, 130, 110), Color.FromArgb(30, 60, 50), false);
 
+            dgvFiles.CellFormatting += dgvFiles_CellFormatting;
+
             LoadUserData();
+        }
+
+        private void dgvFiles_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
+        {
+            if (dgvFiles.Columns[e.ColumnIndex].Name != "file_size" || e.Value == null || e.Value == DBNull.Value)
+            {
+                return;
+            }
+
+            e.Value = FileSizeFormatter.Format(Convert.ToInt64(e.Value));
+            e.FormattingApplied = true;
         }
 
         private void LoadUserData()

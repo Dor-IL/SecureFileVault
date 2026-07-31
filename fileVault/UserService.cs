@@ -1,4 +1,5 @@
 using System.Data.SQLite;
+using System.Globalization;
 
 namespace fileVault
 {
@@ -79,7 +80,15 @@ namespace fileVault
 
                         if (lockedUntilObj != DBNull.Value)
                         {
-                            DateTime lockedUntil = DateTime.Parse(lockedUntilObj.ToString());
+                            // locked_until is stored as DateTime.UtcNow...ToString("o"), e.g. "...T10:30:00Z".
+                            // DateTime.Parse(string) without RoundtripKind converts a "Z"-suffixed value to
+                            // local time instead of preserving it as UTC, so comparing it against DateTime.UtcNow
+                            // below was silently off by the machine's UTC offset - the 5-minute lockout actually
+                            // lasted 5 minutes plus the local UTC offset (e.g. ~3h5m on UTC+3), and would have
+                            // been too short on machines west of UTC. RoundtripKind keeps the parsed value as
+                            // the same UTC instant that was stored.
+                            DateTime lockedUntil = DateTime.Parse(
+                                lockedUntilObj.ToString(), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
                             if (DateTime.UtcNow < lockedUntil)
                             {
                                 reader.Close();

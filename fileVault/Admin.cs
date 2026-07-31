@@ -1,4 +1,3 @@
-using System.Data;
 using System.Data.SQLite;
 
 namespace fileVault
@@ -21,8 +20,8 @@ namespace fileVault
             StyleButton(btnBack);
             StyleButton(btnRefresh);
 
-            StyleGrid(dgvData);
-            StyleGrid(dgvAccessLog, false);
+            GridStyler.Style(dgvData, Color.FromArgb(110, 26, 55), Color.FromArgb(160, 50, 85), Color.FromArgb(75, 16, 38));
+            GridStyler.Style(dgvAccessLog, Color.FromArgb(110, 26, 55), Color.FromArgb(160, 50, 85), Color.FromArgb(75, 16, 38), false);
 
             tables = new List<(DataGridView, string)>
             {
@@ -43,64 +42,11 @@ namespace fileVault
             btn.FlatAppearance.BorderSize = 1;
         }
 
-        private void StyleGrid(DataGridView grid, bool allowHighlight = true)
-        {
-            grid.ReadOnly = true;
-            grid.AllowUserToAddRows = false;
-            grid.AllowUserToDeleteRows = false;
-            grid.RowHeadersVisible = false;
-            grid.AllowUserToResizeColumns = false;
-            grid.AllowUserToResizeRows = false;
-            grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
-
-            grid.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
-            grid.MultiSelect = false;
-
-            Color normalBack = Color.FromArgb(110, 26, 55);
-            Color normalFore = Color.White;
-
-            Color selectedBack = allowHighlight ? Color.FromArgb(160, 50, 85) : normalBack;
-            Color selectedFore = Color.White;
-
-            grid.DefaultCellStyle.SelectionBackColor = selectedBack;
-            grid.DefaultCellStyle.SelectionForeColor = selectedFore;
-            grid.DefaultCellStyle.BackColor = normalBack;
-            grid.DefaultCellStyle.ForeColor = normalFore;
-
-            grid.EnableHeadersVisualStyles = false;
-            grid.ColumnHeadersDefaultCellStyle.BackColor = normalBack;
-            grid.ColumnHeadersDefaultCellStyle.ForeColor = normalFore;
-            grid.ColumnHeadersDefaultCellStyle.Font = new Font(grid.Font, FontStyle.Bold);
-            grid.ColumnHeadersDefaultCellStyle.SelectionBackColor = normalBack;
-            grid.ColumnHeadersDefaultCellStyle.SelectionForeColor = normalFore;
-
-            grid.GridColor = Color.FromArgb(75, 16, 38);
-            grid.BackgroundColor = Color.FromArgb(75, 16, 38);
-
-            if (!allowHighlight)
-            {
-                grid.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
-            }
-        }
-
-        private void LoadTableIntoGrid(string sql, DataGridView grid, params SQLiteParameter[] parameters)
-        {
-            using var connection = new SQLiteConnection(LoginRegister.ConnectionString);
-            using var command = new SQLiteCommand(sql, connection);
-            if (parameters != null) command.Parameters.AddRange(parameters);
-
-            using var adapter = new SQLiteDataAdapter(command);
-            var table = new DataTable();
-            adapter.Fill(table);
-
-            grid.DataSource = table;
-        }
-
         private void LoadAllTables()
         {
             foreach (var (grid, sql) in tables)
             {
-                LoadTableIntoGrid(sql, grid);
+                GridDataLoader.Load(grid, sql);
             }
 
             LoadAccessLog();
@@ -126,10 +72,14 @@ namespace fileVault
 
         private void PopulateAccessLogUserFilter()
         {
+            string previouslySelected = cmbAccessLogUser.SelectedItem as string;
+
             cmbAccessLogUser.Items.Clear();
             cmbAccessLogUser.Items.Add("View All");
             cmbAccessLogUser.Items.AddRange(GetAllUsernames().ToArray());
-            cmbAccessLogUser.SelectedIndex = 0;
+
+            int restoredIndex = previouslySelected != null ? cmbAccessLogUser.Items.IndexOf(previouslySelected) : -1;
+            cmbAccessLogUser.SelectedIndex = restoredIndex >= 0 ? restoredIndex : 0;
         }
 
         private void LoadAccessLog()
@@ -138,13 +88,13 @@ namespace fileVault
 
             if (string.IsNullOrEmpty(selected) || selected == "View All")
             {
-                LoadTableIntoGrid("SELECT * FROM access_log ORDER BY Timestamp DESC", dgvAccessLog);
+                GridDataLoader.Load(dgvAccessLog, "SELECT * FROM access_log ORDER BY Timestamp DESC");
             }
             else
             {
-                LoadTableIntoGrid(
-                    "SELECT * FROM access_log WHERE username = @username ORDER BY Timestamp DESC",
+                GridDataLoader.Load(
                     dgvAccessLog,
+                    "SELECT * FROM access_log WHERE username = @username ORDER BY Timestamp DESC",
                     new SQLiteParameter("@username", selected));
             }
         }
@@ -156,7 +106,12 @@ namespace fileVault
 
         private void UpdateLockButtonStates()
         {
-            if (dgvData.CurrentRow == null || viewingUserFiles)
+            // dgvData.SelectionChanged fires while DataSource is being swapped (e.g. Back button
+            // switching it from the files table back to the users table), including a transient
+            // moment where the old table's columns are still attached. Bail out unless the
+            // is_locked column (users table only) is actually present, otherwise Cells["is_locked"]
+            // throws "Column named is_locked cannot be found."
+            if (dgvData.CurrentRow == null || viewingUserFiles || !dgvData.Columns.Contains("is_locked"))
             {
                 return;
             }
@@ -170,11 +125,13 @@ namespace fileVault
 
         private void btnRefresh_Click(object sender, EventArgs e)
         {
+            PopulateAccessLogUserFilter();
+
             if (viewingUserFiles && selectedUserId != null)
             {
-                LoadTableIntoGrid(
-                    "SELECT * FROM files WHERE owner_id = @uid ORDER BY uploaded_at DESC",
+                GridDataLoader.Load(
                     dgvData,
+                    "SELECT * FROM files WHERE owner_id = @uid ORDER BY uploaded_at DESC",
                     new SQLiteParameter("@uid", selectedUserId)
                 );
 
@@ -198,9 +155,9 @@ namespace fileVault
             string selectedUsername = dgvData.CurrentRow.Cells["username"].Value.ToString();
             viewingUserFiles = true;
 
-            LoadTableIntoGrid(
-                "SELECT * FROM files WHERE owner_id = @uid ORDER BY uploaded_at DESC",
+            GridDataLoader.Load(
                 dgvData,
+                "SELECT * FROM files WHERE owner_id = @uid ORDER BY uploaded_at DESC",
                 new SQLiteParameter("@uid", selectedUserId)
             );
 
@@ -271,9 +228,10 @@ namespace fileVault
 
                 UserService.DeleteFile(LoginRegister.ConnectionString, fileId);
 
-                LoadTableIntoGrid(
+                GridDataLoader.Load(
+                    dgvData,
                     "SELECT * FROM files WHERE owner_id = @uid ORDER BY uploaded_at DESC",
-                    dgvData, new SQLiteParameter("@uid", selectedUserId));
+                    new SQLiteParameter("@uid", selectedUserId));
                 LoadAccessLog();
             }
             else

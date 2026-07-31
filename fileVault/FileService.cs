@@ -8,7 +8,7 @@ namespace fileVault
         public static string StorageDirectory =>
             Path.Combine(Application.StartupPath, "VaultStorage");
 
-        public static int SaveNewFile(string connectionString, int ownerId, string fileName, byte[] plainData)
+        public static async Task<int> SaveNewFileAsync(string connectionString, int ownerId, string fileName, byte[] plainData)
         {
             Directory.CreateDirectory(StorageDirectory);
 
@@ -19,7 +19,7 @@ namespace fileVault
 
             string storedFileName = $"{Guid.NewGuid()}.enc";
             string storedPath = Path.Combine(StorageDirectory, storedFileName);
-            File.WriteAllBytes(storedPath, encrypted);
+            await File.WriteAllBytesAsync(storedPath, encrypted);
 
             string keyStore = $"{Convert.ToBase64String(iv)}:{Convert.ToBase64String(key)}";
 
@@ -38,13 +38,13 @@ namespace fileVault
                     cmd.Parameters.AddWithValue("@size", plainData.Length);
 
                     int fileId = Convert.ToInt32(cmd.ExecuteScalar());
-                    LogEvent(conn, ownerId, GetUsername(conn, ownerId), "FILE_UPLOADED", fileId);
+                    Db.LogEvent(conn, ownerId, Db.GetUsername(conn, ownerId), "FILE_UPLOADED", fileId);
                     return fileId;
                 }
             }
         }
 
-        public static (bool allowed, string message, string fileName, byte[] data) GetFileForDownload(
+        public static async Task<(bool allowed, string message, string fileName, byte[] data)> GetFileForDownloadAsync(
             string connectionString, int fileId, int requestingUserId)
         {
             using (var conn = new SQLiteConnection(connectionString))
@@ -74,7 +74,7 @@ namespace fileVault
 
                 if (!allowed)
                 {
-                    LogEvent(conn, requestingUserId, GetUsername(conn, requestingUserId), "DOWNLOAD_DENIED", fileId);
+                    Db.LogEvent(conn, requestingUserId, Db.GetUsername(conn, requestingUserId), "DOWNLOAD_DENIED", fileId);
                     return (false, "Access denied.", null, null);
                 }
 
@@ -82,10 +82,10 @@ namespace fileVault
                 byte[] iv = Convert.FromBase64String(parts[0]);
                 byte[] key = Convert.FromBase64String(parts[1]);
 
-                byte[] encrypted = File.ReadAllBytes(storedPath);
+                byte[] encrypted = await File.ReadAllBytesAsync(storedPath);
                 byte[] decrypted = Decrypt(encrypted, key, iv);
 
-                LogEvent(conn, requestingUserId, GetUsername(conn, requestingUserId), "DOWNLOAD_SUCCESS", fileId);
+                Db.LogEvent(conn, requestingUserId, Db.GetUsername(conn, requestingUserId), "DOWNLOAD_SUCCESS", fileId);
                 return (true, "OK", fileName, decrypted);
             }
         }
@@ -111,7 +111,7 @@ namespace fileVault
 
                 if (actualOwnerId != ownerId)
                 {
-                    LogEvent(conn, ownerId, GetUsername(conn, ownerId), "SHARE_DENIED", fileId);
+                    Db.LogEvent(conn, ownerId, Db.GetUsername(conn, ownerId), "SHARE_DENIED", fileId);
                     return (false, "Only the file owner can share this file.");
                 }
 
@@ -136,7 +136,7 @@ namespace fileVault
                     cmd.ExecuteNonQuery();
                 }
 
-                LogEvent(conn, ownerId, GetUsername(conn, ownerId), $"FILE_SHARED_WITH:{targetUsername}", fileId);
+                Db.LogEvent(conn, ownerId, Db.GetUsername(conn, ownerId), $"FILE_SHARED_WITH:{targetUsername}", fileId);
                 return (true, $"Shared with {targetUsername}.");
             }
         }
@@ -162,7 +162,7 @@ namespace fileVault
 
                 if (actualOwnerId != ownerId)
                 {
-                    LogEvent(conn, ownerId, GetUsername(conn, ownerId), "UNSHARE_DENIED", fileId);
+                    Db.LogEvent(conn, ownerId, Db.GetUsername(conn, ownerId), "UNSHARE_DENIED", fileId);
                     return (false, "Only the file owner can unshare this file.");
                 }
 
@@ -187,7 +187,7 @@ namespace fileVault
                     cmd.ExecuteNonQuery();
                 }
 
-                LogEvent(conn, ownerId, GetUsername(conn, ownerId), $"FILE_UNSHARED_WITH:{targetUsername}", fileId);
+                Db.LogEvent(conn, ownerId, Db.GetUsername(conn, ownerId), $"FILE_UNSHARED_WITH:{targetUsername}", fileId);
                 return (true, $"Unshared with {targetUsername}.");
             }
         }
@@ -207,43 +207,14 @@ namespace fileVault
         {
             using var aes = Aes.Create();
             aes.Key = key;
-            aes.IV = iv;
-            using var encryptor = aes.CreateEncryptor();
-            using var ms = new MemoryStream();
-            using (var cs = new CryptoStream(ms, encryptor, CryptoStreamMode.Write))
-                cs.Write(data, 0, data.Length);
-            return ms.ToArray();
+            return aes.EncryptCbc(data, iv);
         }
 
         private static byte[] Decrypt(byte[] data, byte[] key, byte[] iv)
         {
             using var aes = Aes.Create();
             aes.Key = key;
-            aes.IV = iv;
-            using var decryptor = aes.CreateDecryptor();
-            using var ms = new MemoryStream();
-            using (var cs = new CryptoStream(ms, decryptor, CryptoStreamMode.Write))
-                cs.Write(data, 0, data.Length);
-            return ms.ToArray();
-        }
-
-        private static void LogEvent(SQLiteConnection conn, int? userId, string username, string action, int? fileId)
-        {
-            const string sql = @"INSERT INTO access_log (user_id, username, action, file_id)
-                              VALUES (@userId, @username, @action, @fileId);";
-            using var cmd = new SQLiteCommand(sql, conn);
-            cmd.Parameters.AddWithValue("@userId", (object)userId ?? DBNull.Value);
-            cmd.Parameters.AddWithValue("@username", (object)username ?? DBNull.Value);
-            cmd.Parameters.AddWithValue("@action", action);
-            cmd.Parameters.AddWithValue("@fileId", (object)fileId ?? DBNull.Value);
-            cmd.ExecuteNonQuery();
-        }
-
-        private static string GetUsername(SQLiteConnection conn, int userId)
-        {
-            using var cmd = new SQLiteCommand("SELECT username FROM users WHERE user_id=@id", conn);
-            cmd.Parameters.AddWithValue("@id", userId);
-            return cmd.ExecuteScalar()?.ToString();
+            return aes.DecryptCbc(data, iv);
         }
     }
 }

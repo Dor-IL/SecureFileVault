@@ -8,6 +8,10 @@ namespace fileVault
         private readonly string _username;
         private readonly VaultClient _vaultClient;
 
+        private readonly System.Windows.Forms.Timer _accountCheckTimer;
+
+        public bool AccountWasDeleted { get; private set; }
+
         public Client(int userId, string username, VaultClient vaultClient)
         {
             InitializeComponent();
@@ -24,6 +28,47 @@ namespace fileVault
             dgvFiles.CellFormatting += dgvFiles_CellFormatting;
 
             LoadUserData();
+
+            _accountCheckTimer = new System.Windows.Forms.Timer { Interval = 5000 };
+            _accountCheckTimer.Tick += AccountCheckTimer_Tick;
+            _accountCheckTimer.Start();
+
+            FormClosed += (s, e) => _accountCheckTimer.Dispose();
+        }
+
+        private async void AccountCheckTimer_Tick(object sender, EventArgs e)
+        {
+            _accountCheckTimer.Stop();
+
+            bool exists;
+            string message;
+            try
+            {
+                (exists, message) = await _vaultClient.CheckUserExistsAsync(_userId);
+            }
+            catch (Exception)
+            {
+                if (!IsDisposed)
+                {
+                    _accountCheckTimer.Start();
+                }
+                return;
+            }
+
+            if (IsDisposed)
+            {
+                return;
+            }
+
+            if (!exists)
+            {
+                AccountWasDeleted = true;
+                MessageBox.Show(message, "Account removed", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                Close();
+                return;
+            }
+
+            _accountCheckTimer.Start();
         }
 
         private void dgvFiles_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)

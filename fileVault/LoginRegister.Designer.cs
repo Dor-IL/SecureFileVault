@@ -82,11 +82,12 @@
             btnAdmin.Click += btnAdmin_Click;
             // 
             // lblError
-            // 
+            //
             lblError.AutoSize = true;
             lblError.BackColor = Color.FromArgb(255, 128, 128);
             lblError.Font = new Font("Verdana", 6.75F, FontStyle.Regular, GraphicsUnit.Point, 0);
             lblError.Location = new Point(44, 247);
+            lblError.MaximumSize = new Size(208, 0);
             lblError.Name = "lblError";
             lblError.Size = new Size(0, 12);
             lblError.TabIndex = 7;

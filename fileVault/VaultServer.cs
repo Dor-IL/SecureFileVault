@@ -99,13 +99,6 @@ namespace fileVault
 
         private async Task HandleDownloadAsync(NetworkStream stream, string request)
         {
-            // Unlike HandleUploadAsync, this had no try/catch: a missing/corrupt stored file
-            // (File.ReadAllBytesAsync throwing inside GetFileForDownloadAsync) or a malformed
-            // request would throw here uncaught, which HandleClientAsync's catch turns into a
-            // silently closed socket instead of a response. The client is left awaiting a reply
-            // that never comes, and when the socket then drops, VaultClient.DownloadFileAsync
-            // throws inside Client's async void btnDownload_Click, crashing the whole app since
-            // there's no unhandled-exception handler for the UI thread. Send a clean FAIL instead.
             try
             {
                 string[] parts = request.Split('|');
@@ -169,12 +162,18 @@ namespace fileVault
                         return success ? "OK" : "FAIL|Username already taken.";
                     }
 
+                case "CHECK_USER":
+                    {
+                        string[] parts = request.Split('|');
+                        if (parts.Length != 2 || !int.TryParse(parts[1], out int checkUserId))
+                            return "FAIL|Invalid check request.";
+
+                        bool exists = UserService.UserExists(LoginRegister.ConnectionString, checkUserId);
+                        return exists ? "OK" : "FAIL|Your account has been deleted by an administrator.";
+                    }
+
                 case "SHARE":
                     {
-                        // Unlike LOGIN/REGISTER above, this never checked parts.Length before indexing
-                        // parts[1..3]. A malformed SHARE request threw an uncaught IndexOutOfRangeException,
-                        // which HandleClientAsync's catch turns into a silently dropped connection instead
-                        // of a FAIL response (see the same class of bug fixed in HandleDownloadAsync).
                         string[] parts = request.Split('|', 4);
                         if (parts.Length != 4)
                             return "FAIL|Invalid share request.";

@@ -32,6 +32,7 @@ namespace fileVault
             PopulateAccessLogUserFilter();
 
             LoadAllTables();
+            UpdateLockButtonStates();
 
             dgvData.SelectionChanged += (s, e) => UpdateLockButtonStates();
             dgvData.CellFormatting += dgvData_CellFormatting;
@@ -96,8 +97,6 @@ namespace fileVault
             }
 
             LoadAccessLog();
-
-            UpdateLockButtonStates();
         }
 
         private List<string> GetAllUsernames()
@@ -226,6 +225,7 @@ namespace fileVault
             LoadAllTables();
 
             ReselectUserRow(userIdToReselect);
+            UpdateLockButtonStates();
         }
 
         private void ReselectUserRow(object userId)

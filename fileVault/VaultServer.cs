@@ -15,7 +15,16 @@ namespace fileVault
 
         public void Start()
         {
-            _listener.Start();
+            try
+            {
+                _listener.Start();
+            }
+            catch (SocketException ex) when (ex.SocketErrorCode == SocketError.AddressAlreadyInUse)
+            {
+                Console.WriteLine($"[Server] Port already in use, assuming another instance is already hosting the server.");
+                return;
+            }
+
             Console.WriteLine($"[Server] Listening on port {((IPEndPoint)_listener.LocalEndpoint).Port}...");
 
             Task.Run(() => AcceptLoopAsync(_cts.Token));

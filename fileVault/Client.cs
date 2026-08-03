@@ -8,6 +8,10 @@ namespace fileVault
         private readonly string _username;
         private readonly VaultClient _vaultClient;
 
+        private readonly System.Windows.Forms.Timer _accountCheckTimer;
+
+        public bool AccountWasDeleted { get; private set; }
+
         public Client(int userId, string username, VaultClient vaultClient)
         {
             InitializeComponent();
@@ -24,6 +28,47 @@ namespace fileVault
             dgvFiles.CellFormatting += dgvFiles_CellFormatting;
 
             LoadUserData();
+
+            _accountCheckTimer = new System.Windows.Forms.Timer { Interval = 5000 };
+            _accountCheckTimer.Tick += AccountCheckTimer_Tick;
+            _accountCheckTimer.Start();
+
+            FormClosed += (s, e) => _accountCheckTimer.Dispose();
+        }
+
+        private async void AccountCheckTimer_Tick(object sender, EventArgs e)
+        {
+            _accountCheckTimer.Stop();
+
+            bool exists;
+            string message;
+            try
+            {
+                (exists, message) = await _vaultClient.CheckUserExistsAsync(_userId);
+            }
+            catch (Exception)
+            {
+                if (!IsDisposed)
+                {
+                    _accountCheckTimer.Start();
+                }
+                return;
+            }
+
+            if (IsDisposed)
+            {
+                return;
+            }
+
+            if (!exists)
+            {
+                AccountWasDeleted = true;
+                MessageBox.Show(message, "Account removed", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                Close();
+                return;
+            }
+
+            _accountCheckTimer.Start();
         }
 
         private void dgvFiles_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
@@ -99,11 +144,21 @@ namespace fileVault
             if (ofd.ShowDialog() != DialogResult.OK) return;
 
             btnUpload.Enabled = false;
-            var (success, message) = await _vaultClient.UploadFileAsync(_userId, ofd.FileName);
-            btnUpload.Enabled = true;
+            try
+            {
+                var (success, message) = await _vaultClient.UploadFileAsync(_userId, ofd.FileName);
 
-            if (!success)
-                MessageBox.Show($"Upload failed: {message}");
+                if (!success)
+                    MessageBox.Show($"Upload failed: {message}");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Upload failed: {ex.Message}");
+            }
+            finally
+            {
+                btnUpload.Enabled = true;
+            }
 
             LoadUserData();
         }
@@ -118,14 +173,24 @@ namespace fileVault
 
             int fileId = Convert.ToInt32(dgvFiles.CurrentRow.Cells["file_id"].Value);
 
-            using var fbd = new FolderBrowserDialog();
-            if (fbd.ShowDialog() != DialogResult.OK) return;
+            string downloadsFolder = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
+            Directory.CreateDirectory(downloadsFolder);
 
             btnDownload.Enabled = false;
-            var (success, message) = await _vaultClient.DownloadFileAsync(_userId, fileId, fbd.SelectedPath);
-            btnDownload.Enabled = true;
-
-            MessageBox.Show(success ? $"Downloaded to: {message}" : $"Download failed: {message}");
+            try
+            {
+                var (success, message) = await _vaultClient.DownloadFileAsync(_userId, fileId, downloadsFolder);
+                MessageBox.Show(success ? $"Downloaded to: {message}" : $"Download failed: {message}");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Download failed: {ex.Message}");
+            }
+            finally
+            {
+                btnDownload.Enabled = true;
+            }
 
             LoadUserData();
         }
@@ -144,10 +209,19 @@ namespace fileVault
             if (string.IsNullOrWhiteSpace(targetUsername)) return;
 
             btnShare.Enabled = false;
-            var (success, message) = await _vaultClient.ShareFileAsync(fileId, _userId, targetUsername.Trim());
-            btnShare.Enabled = true;
-
-            MessageBox.Show(success ? message : $"Share failed: {message}");
+            try
+            {
+                var (success, message) = await _vaultClient.ShareFileAsync(fileId, _userId, targetUsername.Trim());
+                MessageBox.Show(success ? message : $"Share failed: {message}");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Share failed: {ex.Message}");
+            }
+            finally
+            {
+                btnShare.Enabled = true;
+            }
         }
 
         private async void btnUnshare_Click(object sender, EventArgs e)
@@ -171,10 +245,19 @@ namespace fileVault
             if (string.IsNullOrWhiteSpace(targetUsername)) return;
 
             btnUnshare.Enabled = false;
-            var (success, message) = await _vaultClient.UnshareFileAsync(fileId, _userId, targetUsername);
-            btnUnshare.Enabled = true;
-
-            MessageBox.Show(success ? message : $"Unshare failed: {message}");
+            try
+            {
+                var (success, message) = await _vaultClient.UnshareFileAsync(fileId, _userId, targetUsername);
+                MessageBox.Show(success ? message : $"Unshare failed: {message}");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Unshare failed: {ex.Message}");
+            }
+            finally
+            {
+                btnUnshare.Enabled = true;
+            }
 
             LoadUserData();
         }

@@ -32,6 +32,7 @@ namespace fileVault
             PopulateAccessLogUserFilter();
 
             LoadAllTables();
+            UpdateLockButtonStates();
 
             dgvData.SelectionChanged += (s, e) => UpdateLockButtonStates();
             dgvData.CellFormatting += dgvData_CellFormatting;
@@ -96,8 +97,6 @@ namespace fileVault
             }
 
             LoadAccessLog();
-
-            UpdateLockButtonStates();
         }
 
         private List<string> GetAllUsernames()
@@ -226,6 +225,7 @@ namespace fileVault
             LoadAllTables();
 
             ReselectUserRow(userIdToReselect);
+            UpdateLockButtonStates();
         }
 
         private void ReselectUserRow(object userId)
@@ -295,7 +295,9 @@ namespace fileVault
                     MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
                 if (confirm != DialogResult.Yes) return;
 
-                UserService.DeleteFile(LoginRegister.ConnectionString, fileId);
+                bool deleted = UserService.DeleteFile(LoginRegister.ConnectionString, fileId);
+                if (!deleted)
+                    MessageBox.Show("Could not delete that file.");
 
                 GridDataLoader.Load(dgvData, UserFilesQuery, UserFilesParams(selectedUserId));
                 LoadAccessLog();

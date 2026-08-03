@@ -36,13 +36,6 @@ namespace fileVault
 
         private async void btnLogin_Click(object sender, EventArgs e)
         {
-            // EnsureConnectedAsync's null-check-then-create isn't atomic: double-clicking Login (or
-            // clicking Login then Register) before the first click finishes connecting let both
-            // click handlers see _vaultClient == null and each create their own VaultClient/TCP
-            // connection, with whichever ConnectAsync finished last silently winning the _vaultClient
-            // field - leaking the other connection and letting both handlers race on which
-            // connection they end up talking through. Disabling the button for the duration closes
-            // that window, same as Upload/Download/Share/Unshare already do in Client.cs.
             btnLogin.Enabled = false;
             btnRegister.Enabled = false;
 
@@ -61,7 +54,21 @@ namespace fileVault
                 int userId = int.Parse(message);
 
                 Client clientForm = new Client(userId, username, _vaultClient);
-                clientForm.FormClosed += (s, args) => this.Close();
+                clientForm.FormClosed += (s, args) =>
+                {
+                    if (clientForm.AccountWasDeleted)
+                    {
+                        txtName.Clear();
+                        txtPassword.Clear();
+                        lblRegister.Text = null;
+                        lblError.Text = null;
+                        this.Show();
+                    }
+                    else
+                    {
+                        this.Close();
+                    }
+                };
                 clientForm.Show();
                 this.Hide();
             }

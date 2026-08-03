@@ -7,14 +7,6 @@ namespace fileVault
         private TcpClient _client;
         private NetworkStream _stream;
 
-        // Every method below shares this one _stream and none of them synchronized access to it.
-        // Client.cs only disables the button that triggered a given call (e.g. btnUpload during
-        // UploadFileAsync), not the others, so clicking Upload and then immediately Download/Share
-        // while the first call is still awaiting could run two of these methods concurrently. Their
-        // writes (and reads) on the same NetworkStream would interleave mid-frame - e.g. a SHARE
-        // request's bytes landing in the middle of an UPLOAD's file-data frame - permanently
-        // desyncing the length-prefixed framing for the rest of the connection. A semaphore forces
-        // each call's full request/response round trip to complete before the next one starts.
         private readonly SemaphoreSlim _requestLock = new SemaphoreSlim(1, 1);
 
         public async Task ConnectAsync(string host, int port)
@@ -53,7 +45,7 @@ namespace fileVault
                 await NetworkHelper.SendTextAsync(_stream, $"REGISTER|{username}|{password}");
                 string response = await NetworkHelper.ReceiveTextAsync(_stream);
 
-                string[] parts = response.Split('|');
+                string[] parts = response.Split('|', 2);
                 return parts[0] == "OK"
                     ? (true, "Registered successfully.")
                     : (false, parts.Length > 1 ? parts[1] : "Registration failed.");
@@ -146,6 +138,25 @@ namespace fileVault
                 return parts[0] == "OK"
                     ? (true, parts.Length > 1 ? parts[1] : "Unshared successfully.")
                     : (false, parts.Length > 1 ? parts[1] : "Unshare failed.");
+            }
+            finally
+            {
+                _requestLock.Release();
+            }
+        }
+
+        public async Task<(bool exists, string message)> CheckUserExistsAsync(int userId)
+        {
+            await _requestLock.WaitAsync();
+            try
+            {
+                await NetworkHelper.SendTextAsync(_stream, $"CHECK_USER|{userId}");
+                string response = await NetworkHelper.ReceiveTextAsync(_stream);
+
+                string[] parts = response.Split('|');
+                return parts[0] == "OK"
+                    ? (true, "")
+                    : (false, parts.Length > 1 ? parts[1] : "Your account no longer exists.");
             }
             finally
             {

@@ -39,6 +39,7 @@
             btnRefresh = new Button();
             btnDelete = new Button();
             btnUnshare = new Button();
+            lblTimeStamp = new Label();
             ((System.ComponentModel.ISupportInitialize)dgvFiles).BeginInit();
             ((System.ComponentModel.ISupportInitialize)dgvAccessLog).BeginInit();
             SuspendLayout();
@@ -170,12 +171,23 @@
             btnUnshare.UseVisualStyleBackColor = false;
             btnUnshare.Click += btnUnshare_Click;
             // 
+            // lblTimeStamp
+            // 
+            lblTimeStamp.AutoSize = true;
+            lblTimeStamp.Font = new Font("Verdana", 12F, FontStyle.Regular, GraphicsUnit.Point, 0);
+            lblTimeStamp.ForeColor = Color.White;
+            lblTimeStamp.Location = new Point(627, 13);
+            lblTimeStamp.Name = "lblTimeStamp";
+            lblTimeStamp.Size = new Size(0, 18);
+            lblTimeStamp.TabIndex = 18;
+            // 
             // Client
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             BackColor = Color.FromArgb(43, 87, 72);
             ClientSize = new Size(800, 450);
+            Controls.Add(lblTimeStamp);
             Controls.Add(btnUnshare);
             Controls.Add(btnDelete);
             Controls.Add(btnRefresh);
@@ -208,5 +220,6 @@
         private Button btnRefresh;
         private Button btnDelete;
         private Button btnUnshare;
+        private Label lblTimeStamp;
     }
 }

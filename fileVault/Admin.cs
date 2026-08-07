@@ -183,7 +183,7 @@ namespace fileVault
 
             if (viewingUserFiles && selectedUserId != null)
             {
-                GridDataLoader.Load(dgvData, UserFilesQuery, UserFilesParams(selectedUserId));
+                GridDataLoader.LoadPreservingSelection(dgvData, "file_id", UserFilesQuery, UserFilesParams(selectedUserId));
 
                 LoadAccessLog();
             }
@@ -236,27 +236,14 @@ namespace fileVault
             viewingUserFiles = false;
             selectedUserId = null;
 
-            LoadAllTables();
+            GridDataLoader.SuspendedRedraw(dgvData, () =>
+            {
+                GridDataLoader.Load(dgvData, UsersQuery);
+                GridDataLoader.Reselect(dgvData, "user_id", userIdToReselect);
+            });
 
-            ReselectUserRow(userIdToReselect);
+            LoadAccessLog();
             UpdateLockButtonStates();
-        }
-
-        private void ReselectUserRow(object userId)
-        {
-            if (userId == null)
-            {
-                return;
-            }
-
-            foreach (DataGridViewRow row in dgvData.Rows)
-            {
-                if (userId.Equals(row.Cells["user_id"].Value))
-                {
-                    dgvData.CurrentCell = row.Cells[0];
-                    break;
-                }
-            }
         }
 
         private void btnLock_Click(object sender, EventArgs e)

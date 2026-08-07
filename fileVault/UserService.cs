@@ -207,6 +207,44 @@ namespace fileVault
             }
         }
 
+        public static List<string> SearchUsernames(string connectionString, string prefix, int excludeUserId, int maxResults = 5)
+        {
+            var results = new List<string>();
+            if (string.IsNullOrWhiteSpace(prefix)) return results;
+
+            using (var conn = new SQLiteConnection(connectionString))
+            {
+                conn.Open();
+
+                const string sql = @"
+                    SELECT username FROM users
+                    WHERE username LIKE @pattern ESCAPE '\'
+                      AND user_id != @excludeId
+                    ORDER BY username
+                    LIMIT @max;";
+
+                using (var cmd = new SQLiteCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue("@pattern", EscapeLikePrefix(prefix));
+                    cmd.Parameters.AddWithValue("@excludeId", excludeUserId);
+                    cmd.Parameters.AddWithValue("@max", maxResults);
+
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                            results.Add(reader.GetString(0));
+                    }
+                }
+            }
+
+            return results;
+        }
+
+        private static string EscapeLikePrefix(string prefix)
+        {
+            return prefix.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_") + "%";
+        }
+
         public static void DeleteUser(string connectionString, int userId)
         {
             using (var conn = new SQLiteConnection(connectionString))

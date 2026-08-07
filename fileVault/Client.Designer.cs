@@ -176,7 +176,7 @@
             lblTimeStamp.AutoSize = true;
             lblTimeStamp.Font = new Font("Verdana", 12F, FontStyle.Regular, GraphicsUnit.Point, 0);
             lblTimeStamp.ForeColor = Color.White;
-            lblTimeStamp.Location = new Point(627, 13);
+            lblTimeStamp.Location = new Point(608, 13);
             lblTimeStamp.Name = "lblTimeStamp";
             lblTimeStamp.Size = new Size(0, 18);
             lblTimeStamp.TabIndex = 18;

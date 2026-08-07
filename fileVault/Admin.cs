@@ -10,6 +10,8 @@ namespace fileVault
         private bool viewingUserFiles = false;
         private object selectedUserId = null;
 
+        private readonly System.Windows.Forms.Timer _clockTimer;
+
         public Admin()
         {
             InitializeComponent();
@@ -36,6 +38,18 @@ namespace fileVault
 
             dgvData.SelectionChanged += (s, e) => UpdateLockButtonStates();
             dgvData.CellFormatting += dgvData_CellFormatting;
+
+            UpdateClock();
+            _clockTimer = new System.Windows.Forms.Timer { Interval = 1000 };
+            _clockTimer.Tick += (s, e) => UpdateClock();
+            _clockTimer.Start();
+
+            FormClosed += (s, e) => _clockTimer.Dispose();
+        }
+
+        private void UpdateClock()
+        {
+            lblTimeStamp.Text = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
         }
 
         private const string UsersQuery =

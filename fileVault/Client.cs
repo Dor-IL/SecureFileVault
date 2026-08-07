@@ -1,4 +1,5 @@
 using System.Data.SQLite;
+using System.Globalization;
 
 namespace fileVault
 {
@@ -9,6 +10,7 @@ namespace fileVault
         private readonly VaultClient _vaultClient;
 
         private readonly System.Windows.Forms.Timer _accountCheckTimer;
+        private readonly System.Windows.Forms.Timer _clockTimer;
 
         public bool AccountWasDeleted { get; private set; }
 
@@ -33,7 +35,18 @@ namespace fileVault
             _accountCheckTimer.Tick += AccountCheckTimer_Tick;
             _accountCheckTimer.Start();
 
+            UpdateClock();
+            _clockTimer = new System.Windows.Forms.Timer { Interval = 1000 };
+            _clockTimer.Tick += (s, e) => UpdateClock();
+            _clockTimer.Start();
+
             FormClosed += (s, e) => _accountCheckTimer.Dispose();
+            FormClosed += (s, e) => _clockTimer.Dispose();
+        }
+
+        private void UpdateClock()
+        {
+            lblTimeStamp.Text = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
         }
 
         private async void AccountCheckTimer_Tick(object sender, EventArgs e)

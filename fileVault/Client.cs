@@ -97,8 +97,9 @@ namespace fileVault
 
         private void LoadUserData()
         {
-            GridDataLoader.Load(
+            GridDataLoader.LoadPreservingSelection(
                 dgvFiles,
+                "file_id",
                 @"SELECT file_id, file_name, file_size, uploaded_at, 'Owned' AS access
                   FROM files
                   WHERE owner_id = @uid1

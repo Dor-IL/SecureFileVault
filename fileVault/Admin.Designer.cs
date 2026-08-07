@@ -29,9 +29,13 @@
             lblAccessLogTable = new Label();
             cmbAccessLogUser = new ComboBox();
             btnBack = new Button();
+            lblTimeStamp = new Label();
             ((System.ComponentModel.ISupportInitialize)dgvData).BeginInit();
             ((System.ComponentModel.ISupportInitialize)dgvAccessLog).BeginInit();
             SuspendLayout();
+            // 
+            // ProjectName
+            // 
             ProjectName.AutoSize = true;
             ProjectName.Font = new Font("Verdana", 14.25F, FontStyle.Regular, GraphicsUnit.Point, 0);
             ProjectName.ForeColor = Color.White;
@@ -40,6 +44,9 @@
             ProjectName.Size = new Size(260, 23);
             ProjectName.TabIndex = 0;
             ProjectName.Text = "Secure files vault - Admin";
+            // 
+            // btnLock
+            // 
             btnLock.BackColor = Color.FromArgb(212, 160, 66);
             btnLock.Font = new Font("Verdana", 11.25F, FontStyle.Regular, GraphicsUnit.Point, 0);
             btnLock.ForeColor = Color.White;
@@ -50,6 +57,9 @@
             btnLock.Text = "Lock";
             btnLock.UseVisualStyleBackColor = false;
             btnLock.Click += btnLock_Click;
+            // 
+            // btnDelete
+            // 
             btnDelete.BackColor = Color.FromArgb(212, 160, 66);
             btnDelete.Font = new Font("Verdana", 11.25F, FontStyle.Regular, GraphicsUnit.Point, 0);
             btnDelete.ForeColor = Color.White;
@@ -60,6 +70,9 @@
             btnDelete.Text = "Delete";
             btnDelete.UseVisualStyleBackColor = false;
             btnDelete.Click += btnDelete_Click;
+            // 
+            // btnUnlock
+            // 
             btnUnlock.BackColor = Color.FromArgb(212, 160, 66);
             btnUnlock.Font = new Font("Verdana", 11.25F, FontStyle.Regular, GraphicsUnit.Point, 0);
             btnUnlock.ForeColor = Color.White;
@@ -70,6 +83,9 @@
             btnUnlock.Text = "Unlock";
             btnUnlock.UseVisualStyleBackColor = false;
             btnUnlock.Click += btnUnlock_Click;
+            // 
+            // btnViewFiles
+            // 
             btnViewFiles.BackColor = Color.FromArgb(212, 160, 66);
             btnViewFiles.Font = new Font("Verdana", 11.25F, FontStyle.Regular, GraphicsUnit.Point, 0);
             btnViewFiles.ForeColor = Color.White;
@@ -80,12 +96,18 @@
             btnViewFiles.Text = "ViewFiles";
             btnViewFiles.UseVisualStyleBackColor = false;
             btnViewFiles.Click += btnViewFiles_Click;
+            // 
+            // dgvData
+            // 
             dgvData.BackgroundColor = Color.DarkGray;
             dgvData.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             dgvData.Location = new Point(12, 113);
             dgvData.Name = "dgvData";
             dgvData.Size = new Size(776, 197);
             dgvData.TabIndex = 5;
+            // 
+            // btnRefresh
+            // 
             btnRefresh.BackColor = Color.FromArgb(212, 160, 66);
             btnRefresh.Font = new Font("Verdana", 11.25F, FontStyle.Regular, GraphicsUnit.Point, 0);
             btnRefresh.ForeColor = Color.White;
@@ -96,6 +118,9 @@
             btnRefresh.Text = "Refresh";
             btnRefresh.UseVisualStyleBackColor = false;
             btnRefresh.Click += btnRefresh_Click;
+            // 
+            // lblDataTable
+            // 
             lblDataTable.AutoSize = true;
             lblDataTable.Font = new Font("Verdana", 12F, FontStyle.Regular, GraphicsUnit.Point, 0);
             lblDataTable.ForeColor = Color.White;
@@ -104,11 +129,17 @@
             lblDataTable.Size = new Size(54, 18);
             lblDataTable.TabIndex = 7;
             lblDataTable.Text = "Users";
+            // 
+            // dgvAccessLog
+            // 
             dgvAccessLog.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             dgvAccessLog.Location = new Point(12, 343);
             dgvAccessLog.Name = "dgvAccessLog";
             dgvAccessLog.Size = new Size(776, 95);
             dgvAccessLog.TabIndex = 8;
+            // 
+            // lblAccessLogTable
+            // 
             lblAccessLogTable.AutoSize = true;
             lblAccessLogTable.Font = new Font("Verdana", 12F, FontStyle.Regular, GraphicsUnit.Point, 0);
             lblAccessLogTable.ForeColor = Color.White;
@@ -117,14 +148,20 @@
             lblAccessLogTable.Size = new Size(98, 18);
             lblAccessLogTable.TabIndex = 9;
             lblAccessLogTable.Text = "Access Log";
+            // 
+            // cmbAccessLogUser
+            // 
             cmbAccessLogUser.DropDownStyle = ComboBoxStyle.DropDownList;
             cmbAccessLogUser.Font = new Font("Verdana", 9F, FontStyle.Regular, GraphicsUnit.Point, 0);
             cmbAccessLogUser.FormattingEnabled = true;
             cmbAccessLogUser.Location = new Point(608, 319);
             cmbAccessLogUser.Name = "cmbAccessLogUser";
-            cmbAccessLogUser.Size = new Size(180, 23);
+            cmbAccessLogUser.Size = new Size(180, 22);
             cmbAccessLogUser.TabIndex = 11;
             cmbAccessLogUser.SelectedIndexChanged += cmbAccessLogUser_SelectedIndexChanged;
+            // 
+            // btnBack
+            // 
             btnBack.BackColor = Color.FromArgb(212, 160, 66);
             btnBack.Font = new Font("Verdana", 11.25F, FontStyle.Regular, GraphicsUnit.Point, 0);
             btnBack.ForeColor = Color.White;
@@ -136,10 +173,24 @@
             btnBack.UseVisualStyleBackColor = false;
             btnBack.Visible = false;
             btnBack.Click += btnBack_Click;
+            // 
+            // lblTimeStamp
+            // 
+            lblTimeStamp.AutoSize = true;
+            lblTimeStamp.Font = new Font("Verdana", 12F, FontStyle.Regular, GraphicsUnit.Point, 0);
+            lblTimeStamp.ForeColor = Color.White;
+            lblTimeStamp.Location = new Point(608, 14);
+            lblTimeStamp.Name = "lblTimeStamp";
+            lblTimeStamp.Size = new Size(0, 18);
+            lblTimeStamp.TabIndex = 12;
+            // 
+            // Admin
+            // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             BackColor = Color.FromArgb(110, 26, 55);
             ClientSize = new Size(800, 450);
+            Controls.Add(lblTimeStamp);
             Controls.Add(lblAccessLogTable);
             Controls.Add(cmbAccessLogUser);
             Controls.Add(dgvAccessLog);
@@ -174,5 +225,6 @@
         private Label lblAccessLogTable;
         private ComboBox cmbAccessLogUser;
         private Button btnBack;
+        private Label lblTimeStamp;
     }
 }

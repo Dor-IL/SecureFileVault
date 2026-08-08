@@ -286,17 +286,15 @@ namespace fileVault
                 string fileName = dgvData.CurrentRow.Cells["file_name"].Value.ToString();
                 string access = dgvData.CurrentRow.Cells["access"].Value.ToString();
 
-                if (access == "Shared")
-                {
-                    MessageBox.Show("This file belongs to another user. Delete it from that user's own file list instead.");
-                    return;
-                }
+                string confirmMessage = access == "Shared"
+                    ? $"'{fileName}' belongs to another user. Remove this user's access to it?"
+                    : $"Delete file '{fileName}'?";
 
-                var confirm = MessageBox.Show($"Delete file '{fileName}'?", "Confirm",
+                var confirm = MessageBox.Show(confirmMessage, "Confirm",
                     MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
                 if (confirm != DialogResult.Yes) return;
 
-                bool deleted = UserService.DeleteFile(LoginRegister.ConnectionString, fileId);
+                bool deleted = UserService.DeleteFile(LoginRegister.ConnectionString, fileId, Convert.ToInt32(selectedUserId));
                 if (!deleted)
                     MessageBox.Show("Could not delete that file.");
 

@@ -332,8 +332,22 @@ namespace fileVault
 
                 if (requestingUserId.HasValue && ownerId != requestingUserId.Value)
                 {
-                    Db.LogEvent(conn, requestingUserId, Db.GetUsername(conn, requestingUserId.Value), "DELETE_DENIED", fileId);
-                    return false;
+                    using (var cmd = new SQLiteCommand(
+                        "DELETE FROM permissions WHERE file_id = @id AND user_id = @uid", conn))
+                    {
+                        cmd.Parameters.AddWithValue("@id", fileId);
+                        cmd.Parameters.AddWithValue("@uid", requestingUserId.Value);
+                        int rowsAffected = cmd.ExecuteNonQuery();
+
+                        if (rowsAffected == 0)
+                        {
+                            Db.LogEvent(conn, requestingUserId, Db.GetUsername(conn, requestingUserId.Value), "DELETE_DENIED", fileId);
+                            return false;
+                        }
+                    }
+
+                    Db.LogEvent(conn, requestingUserId, Db.GetUsername(conn, requestingUserId.Value), "SHARE_REMOVED_SELF", fileId);
+                    return true;
                 }
 
                 using (var cmd = new SQLiteCommand(

@@ -138,9 +138,14 @@ namespace fileVault
 
             int fileId = Convert.ToInt32(dgvFiles.CurrentRow.Cells["file_id"].Value);
             string fileName = dgvFiles.CurrentRow.Cells["file_name"].Value.ToString();
+            string access = dgvFiles.CurrentRow.Cells["access"].Value.ToString();
+
+            string confirmMessage = access == "Shared"
+                ? $"'{fileName}' was shared with you. Remove it from your list?"
+                : $"Delete '{fileName}'? This cannot be undone.";
 
             var confirm = MessageBox.Show(
-                $"Delete '{fileName}'? This cannot be undone.",
+                confirmMessage,
                 "Confirm Delete", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
             if (confirm != DialogResult.Yes) return;
 

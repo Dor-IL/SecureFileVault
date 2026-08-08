@@ -324,13 +324,13 @@ namespace fileVault
             return dialog.ShowDialog() == DialogResult.OK ? combo.SelectedItem as string : null;
         }
 
-        private static string PromptForUsername(string title, string prompt)
+        private string PromptForUsername(string title, string prompt)
         {
             using var dialog = new Form
             {
                 Text = title,
                 Width = 360,
-                Height = 160,
+                Height = 230,
                 FormBorderStyle = FormBorderStyle.FixedDialog,
                 StartPosition = FormStartPosition.CenterParent,
                 MaximizeBox = false,
@@ -339,10 +339,76 @@ namespace fileVault
 
             var lbl = new Label { Left = 12, Top = 12, Width = 320, Text = prompt };
             var txt = new TextBox { Left = 12, Top = 40, Width = 320 };
-            var btnOk = new Button { Text = "OK", Left = 175, Width = 75, Top = 75, DialogResult = DialogResult.OK };
-            var btnCancel = new Button { Text = "Cancel", Left = 257, Width = 75, Top = 75, DialogResult = DialogResult.Cancel };
+            var lst = new ListBox { Left = 12, Top = 64, Width = 320, Height = 92, Visible = false };
+            var btnOk = new Button { Text = "OK", Left = 175, Width = 75, Top = 164, DialogResult = DialogResult.OK };
+            var btnCancel = new Button { Text = "Cancel", Left = 257, Width = 75, Top = 164, DialogResult = DialogResult.Cancel };
 
-            dialog.Controls.AddRange(new Control[] { lbl, txt, btnOk, btnCancel });
+            void AcceptSuggestion(int index)
+            {
+                if (index < 0 || index >= lst.Items.Count) return;
+                txt.Text = (string)lst.Items[index];
+                txt.SelectionStart = txt.Text.Length;
+                lst.Visible = false;
+                txt.Focus();
+            }
+
+            txt.TextChanged += (s, e) =>
+            {
+                string query = txt.Text.Trim();
+                List<string> matches = query.Length == 0
+                    ? new List<string>()
+                    : UserService.SearchUsernames(LoginRegister.ConnectionString, query, _userId);
+
+                lst.Items.Clear();
+                if (matches.Count > 0)
+                {
+                    lst.Items.AddRange(matches.ToArray());
+                    lst.Visible = true;
+                }
+                else
+                {
+                    lst.Visible = false;
+                }
+            };
+
+            txt.KeyDown += (s, e) =>
+            {
+                if (e.KeyCode == Keys.Down && lst.Visible && lst.Items.Count > 0)
+                {
+                    lst.Focus();
+                    lst.SelectedIndex = 0;
+                    e.Handled = true;
+                    e.SuppressKeyPress = true;
+                }
+            };
+
+            lst.Click += (s, e) => AcceptSuggestion(lst.SelectedIndex);
+
+            lst.DoubleClick += (s, e) =>
+            {
+                AcceptSuggestion(lst.SelectedIndex);
+                dialog.DialogResult = DialogResult.OK;
+                dialog.Close();
+            };
+
+            lst.KeyDown += (s, e) =>
+            {
+                if (e.KeyCode == Keys.Enter)
+                {
+                    AcceptSuggestion(lst.SelectedIndex);
+                    e.Handled = true;
+                    e.SuppressKeyPress = true;
+                }
+                else if (e.KeyCode == Keys.Escape)
+                {
+                    lst.Visible = false;
+                    txt.Focus();
+                    e.Handled = true;
+                    e.SuppressKeyPress = true;
+                }
+            };
+
+            dialog.Controls.AddRange(new Control[] { lbl, txt, lst, btnOk, btnCancel });
             dialog.AcceptButton = btnOk;
             dialog.CancelButton = btnCancel;
 

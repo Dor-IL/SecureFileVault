@@ -140,9 +140,6 @@ namespace fileVault
             string fileName = dgvFiles.CurrentRow.Cells["file_name"].Value.ToString();
             string access = dgvFiles.CurrentRow.Cells["access"].Value.ToString();
 
-            // For a file this user only has "Shared" access to, "delete" doesn't touch the
-            // owner's file - UserService.DeleteFile just drops this user's own permission
-            // row for it, which is effectively "remove it from my list".
             string confirmMessage = access == "Shared"
                 ? $"'{fileName}' was shared with you. Remove it from your list?"
                 : $"Delete '{fileName}'? This cannot be undone.";

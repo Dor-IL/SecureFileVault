@@ -286,10 +286,6 @@ namespace fileVault
                 string fileName = dgvData.CurrentRow.Cells["file_name"].Value.ToString();
                 string access = dgvData.CurrentRow.Cells["access"].Value.ToString();
 
-                // "Shared" rows belong to a different owner and are only visible here
-                // because they were shared with the user we're viewing. Deleting one of
-                // those no longer blocks the admin - it just revokes that user's access,
-                // the same way it would if the user tried to delete it themselves.
                 string confirmMessage = access == "Shared"
                     ? $"'{fileName}' belongs to another user. Remove this user's access to it?"
                     : $"Delete file '{fileName}'?";

@@ -292,10 +292,6 @@ namespace fileVault
                     }
                 }
 
-                // Non-owners can never delete the actual file. If the file was shared with
-                // this user, "delete" just removes their own access (their permissions row)
-                // instead of destroying the owner's file. If it wasn't shared with them at
-                // all, there's nothing to do for them, so deny as before.
                 if (requestingUserId.HasValue && ownerId != requestingUserId.Value)
                 {
                     using (var cmd = new SQLiteCommand(
@@ -307,7 +303,6 @@ namespace fileVault
 
                         if (rowsAffected == 0)
                         {
-                            // Not the owner and no share existed either - nothing to remove.
                             Db.LogEvent(conn, requestingUserId, Db.GetUsername(conn, requestingUserId.Value), "DELETE_DENIED", fileId);
                             return false;
                         }

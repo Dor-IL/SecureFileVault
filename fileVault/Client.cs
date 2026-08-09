@@ -77,21 +77,22 @@ namespace fileVault
 
             if (!ok)
             {
-                if (locked)
-                {
-                    AccountWasLocked = true;
-                    MessageBox.Show(message, "Account locked", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                }
-                else
-                {
-                    AccountWasDeleted = true;
-                    MessageBox.Show(message, "Account removed", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                }
-                Close();
+                CloseDueToAccountState(locked, message);
                 return;
             }
 
             _accountCheckTimer.Start();
+        }
+
+        private void CloseDueToAccountState(bool locked, string message)
+        {
+            if (locked)
+                AccountWasLocked = true;
+            else
+                AccountWasDeleted = true;
+
+            MessageBox.Show(message, locked ? "Account locked" : "Account removed", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            Close();
         }
 
         private void dgvFiles_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
@@ -140,6 +141,14 @@ namespace fileVault
 
         private void btnDelete_Click(object sender, EventArgs e)
         {
+            var state = UserService.GetAccountState(LoginRegister.ConnectionString, _userId);
+            if (state != AccountState.Active)
+            {
+                var (_, message) = state.Describe();
+                MessageBox.Show($"Can't delete or unshare files: {message}", "Action blocked", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
             if (dgvFiles.CurrentRow == null)
             {
                 MessageBox.Show("Please select a file first.");

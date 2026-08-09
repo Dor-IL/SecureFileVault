@@ -13,6 +13,7 @@ namespace fileVault
         private readonly System.Windows.Forms.Timer _clockTimer;
 
         public bool AccountWasDeleted { get; private set; }
+        public bool AccountWasLocked { get; private set; }
 
         public Client(int userId, string username, VaultClient vaultClient)
         {
@@ -53,11 +54,12 @@ namespace fileVault
         {
             _accountCheckTimer.Stop();
 
-            bool exists;
+            bool ok;
+            bool locked;
             string message;
             try
             {
-                (exists, message) = await _vaultClient.CheckUserExistsAsync(_userId);
+                (ok, locked, message) = await _vaultClient.CheckAccountStatusAsync(_userId);
             }
             catch (Exception)
             {
@@ -73,10 +75,18 @@ namespace fileVault
                 return;
             }
 
-            if (!exists)
+            if (!ok)
             {
-                AccountWasDeleted = true;
-                MessageBox.Show(message, "Account removed", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                if (locked)
+                {
+                    AccountWasLocked = true;
+                    MessageBox.Show(message, "Account locked", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
+                else
+                {
+                    AccountWasDeleted = true;
+                    MessageBox.Show(message, "Account removed", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
                 Close();
                 return;
             }

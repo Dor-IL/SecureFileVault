@@ -56,7 +56,7 @@ namespace fileVault
                 Client clientForm = new Client(userId, username, _vaultClient);
                 clientForm.FormClosed += (s, args) =>
                 {
-                    if (clientForm.AccountWasDeleted)
+                    if (clientForm.AccountWasDeleted || clientForm.AccountWasLocked)
                     {
                         txtName.Clear();
                         txtPassword.Clear();

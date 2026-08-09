@@ -52,6 +52,7 @@ namespace fileVault
                     username Text NOT NULL,
                     action          TEXT NOT NULL,
                     file_id         INTEGER,
+                    actor           TEXT NOT NULL DEFAULT 'USER',
                     timestamp       TEXT NOT NULL DEFAULT (datetime('now')),
                     FOREIGN KEY (user_id) REFERENCES users(user_id),
                     FOREIGN KEY (file_id) REFERENCES files(file_id)
@@ -72,18 +73,37 @@ namespace fileVault
 
                 using (var command = new SQLiteCommand(createTablesQuery, connection))
                     command.ExecuteNonQuery();
+
+                AddColumnIfMissing(connection, "access_log", "actor", "TEXT NOT NULL DEFAULT 'USER'");
             }
         }
 
-        public static void LogEvent(SQLiteConnection conn, int? userId, string username, string action, int? fileId)
+        private static void AddColumnIfMissing(SQLiteConnection connection, string table, string column, string definition)
         {
-            const string sql = @"INSERT INTO access_log (user_id, username, action, file_id)
-                              VALUES (@userId, @username, @action, @fileId);";
+            using (var pragma = new SQLiteCommand($"PRAGMA table_info({table});", connection))
+            using (var reader = pragma.ExecuteReader())
+            {
+                while (reader.Read())
+                {
+                    if (string.Equals(reader["name"].ToString(), column, StringComparison.OrdinalIgnoreCase))
+                        return;
+                }
+            }
+
+            using (var alter = new SQLiteCommand($"ALTER TABLE {table} ADD COLUMN {column} {definition};", connection))
+                alter.ExecuteNonQuery();
+        }
+
+        public static void LogEvent(SQLiteConnection conn, int? userId, string username, string action, int? fileId, bool isAdminAction = false)
+        {
+            const string sql = @"INSERT INTO access_log (user_id, username, action, file_id, actor)
+                              VALUES (@userId, @username, @action, @fileId, @actor);";
             using var cmd = new SQLiteCommand(sql, conn);
             cmd.Parameters.AddWithValue("@userId", (object)userId ?? DBNull.Value);
             cmd.Parameters.AddWithValue("@username", (object)username ?? DBNull.Value);
             cmd.Parameters.AddWithValue("@action", action);
             cmd.Parameters.AddWithValue("@fileId", (object)fileId ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@actor", isAdminAction ? "ADMIN" : "USER");
             cmd.ExecuteNonQuery();
         }
 

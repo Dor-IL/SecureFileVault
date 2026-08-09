@@ -87,6 +87,20 @@ namespace fileVault
             }
         }
 
+        private static (bool allowed, string message) CheckAccountActive(int userId)
+        {
+            var state = UserService.GetAccountState(LoginRegister.ConnectionString, userId);
+            switch (state)
+            {
+                case AccountState.Active:
+                    return (true, null);
+                case AccountState.Locked:
+                    return (false, "Your account has been locked by an administrator.");
+                default:
+                    return (false, "Your account has been deleted by an administrator.");
+            }
+        }
+
         private async Task HandleUploadAsync(NetworkStream stream, string request)
         {
             try
@@ -95,7 +109,16 @@ namespace fileVault
                 int userId = int.Parse(parts[1]);
                 string fileName = parts[2];
 
+                // The client always sends the file bytes right after the header, so they
+                // must be drained from the stream even when the upload is going to be rejected.
                 byte[] fileData = await NetworkHelper.ReceiveMessageAsync(stream);
+
+                var (allowed, activeMessage) = CheckAccountActive(userId);
+                if (!allowed)
+                {
+                    await NetworkHelper.SendTextAsync(stream, $"FAIL|{activeMessage}");
+                    return;
+                }
 
                 int fileId = await FileService.SaveNewFileAsync(LoginRegister.ConnectionString, userId, fileName, fileData);
                 await NetworkHelper.SendTextAsync(stream, $"OK|{fileId}");
@@ -113,6 +136,13 @@ namespace fileVault
                 string[] parts = request.Split('|');
                 int userId = int.Parse(parts[1]);
                 int fileId = int.Parse(parts[2]);
+
+                var (allowed, activeMessage) = CheckAccountActive(userId);
+                if (!allowed)
+                {
+                    await NetworkHelper.SendTextAsync(stream, $"FAIL|{activeMessage}");
+                    return;
+                }
 
                 var result = await FileService.GetFileForDownloadAsync(LoginRegister.ConnectionString, fileId, userId);
 
@@ -198,6 +228,10 @@ namespace fileVault
                         int ownerId = int.Parse(parts[2]);
                         string targetUsername = parts[3];
 
+                        var (allowed, activeMessage) = CheckAccountActive(ownerId);
+                        if (!allowed)
+                            return $"FAIL|{activeMessage}";
+
                         var (success, message) = FileService.ShareFile(LoginRegister.ConnectionString, fileId, ownerId, targetUsername);
                         return success ? $"OK|{message}" : $"FAIL|{message}";
                     }
@@ -210,6 +244,10 @@ namespace fileVault
                         int fileId = int.Parse(parts[1]);
                         int ownerId = int.Parse(parts[2]);
                         string targetUsername = parts[3];
+
+                        var (allowed, activeMessage) = CheckAccountActive(ownerId);
+                        if (!allowed)
+                            return $"FAIL|{activeMessage}";
 
                         var (success, message) = FileService.UnshareFile(LoginRegister.ConnectionString, fileId, ownerId, targetUsername);
                         return success ? $"OK|{message}" : $"FAIL|{message}";

@@ -145,7 +145,7 @@ namespace fileVault
             if (state != AccountState.Active)
             {
                 var (_, message) = state.Describe();
-                CloseDueToAccountState(state == AccountState.Locked, message);
+                MessageBox.Show($"Can't delete or unshare files: {message}", "Action blocked", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 

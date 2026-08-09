@@ -167,8 +167,8 @@ namespace fileVault
                         string username = parts[1];
                         string password = parts[2];
 
-                        bool success = UserService.RegisterUser(LoginRegister.ConnectionString, username, password);
-                        return success ? "OK" : "FAIL|Username already taken.";
+                        bool success = UserService.RegisterUser(LoginRegister.ConnectionString, username, password, out string error);
+                        return success ? "OK" : $"FAIL|{error ?? "Username already taken."}";
                     }
 
                 case "CHECK_USER":

@@ -145,7 +145,7 @@ namespace fileVault
             }
         }
 
-        public async Task<(bool exists, string message)> CheckUserExistsAsync(int userId)
+        public async Task<(bool ok, bool locked, string message)> CheckAccountStatusAsync(int userId)
         {
             await _requestLock.WaitAsync();
             try
@@ -153,10 +153,13 @@ namespace fileVault
                 await NetworkHelper.SendTextAsync(_stream, $"CHECK_USER|{userId}");
                 string response = await NetworkHelper.ReceiveTextAsync(_stream);
 
-                string[] parts = response.Split('|');
-                return parts[0] == "OK"
-                    ? (true, "")
-                    : (false, parts.Length > 1 ? parts[1] : "Your account no longer exists.");
+                string[] parts = response.Split('|', 3);
+                if (parts[0] == "OK")
+                    return (true, false, "");
+
+                bool locked = parts.Length > 1 && parts[1] == "LOCKED";
+                string message = parts.Length > 2 ? parts[2] : "Your account is no longer available.";
+                return (false, locked, message);
             }
             finally
             {

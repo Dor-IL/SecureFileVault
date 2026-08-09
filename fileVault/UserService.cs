@@ -192,17 +192,19 @@ namespace fileVault
             }
         }
 
-        public static bool UserExists(string connectionString, int userId)
+        public static AccountState GetAccountState(string connectionString, int userId)
         {
             using (var conn = new SQLiteConnection(connectionString))
             {
                 conn.Open();
 
-                const string sql = "SELECT 1 FROM users WHERE user_id = @id;";
+                const string sql = "SELECT is_locked FROM users WHERE user_id = @id;";
                 using (var cmd = new SQLiteCommand(sql, conn))
                 {
                     cmd.Parameters.AddWithValue("@id", userId);
-                    return cmd.ExecuteScalar() != null;
+                    object result = cmd.ExecuteScalar();
+                    if (result == null) return AccountState.NotFound;
+                    return Convert.ToInt32(result) == 1 ? AccountState.Locked : AccountState.Active;
                 }
             }
         }

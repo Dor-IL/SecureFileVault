@@ -168,7 +168,7 @@ namespace fileVault
                     cmd.ExecuteNonQuery();
                 }
 
-                Db.LogEvent(conn, userId, Db.GetUsername(conn, userId), "ADMIN_LOCK", null);
+                Db.LogEvent(conn, userId, Db.GetUsername(conn, userId), "ADMIN_LOCK", null, isAdminAction: true);
             }
         }
 
@@ -188,7 +188,7 @@ namespace fileVault
                     cmd.ExecuteNonQuery();
                 }
 
-                Db.LogEvent(conn, userId, Db.GetUsername(conn, userId), "ADMIN_UNLOCK", null);
+                Db.LogEvent(conn, userId, Db.GetUsername(conn, userId), "ADMIN_UNLOCK", null, isAdminAction: true);
             }
         }
 
@@ -293,7 +293,7 @@ namespace fileVault
 
                         tx.Commit();
 
-                        Db.LogEvent(conn, null, deletedUsername, "USER_DELETED", null);
+                        Db.LogEvent(conn, null, deletedUsername, "USER_DELETED", null, isAdminAction: true);
 
                         foreach (var path in filePaths)
                         {
@@ -309,7 +309,7 @@ namespace fileVault
             }
         }
 
-        public static bool DeleteFile(string connectionString, int fileId, int? requestingUserId = null)
+        public static bool DeleteFile(string connectionString, int fileId, int? requestingUserId = null, bool isAdminAction = false)
         {
             using (var conn = new SQLiteConnection(connectionString))
             {
@@ -343,12 +343,12 @@ namespace fileVault
 
                         if (rowsAffected == 0)
                         {
-                            Db.LogEvent(conn, requestingUserId, Db.GetUsername(conn, requestingUserId.Value), "DELETE_DENIED", fileId);
+                            Db.LogEvent(conn, requestingUserId, Db.GetUsername(conn, requestingUserId.Value), "DELETE_DENIED", fileId, isAdminAction);
                             return false;
                         }
                     }
 
-                    Db.LogEvent(conn, requestingUserId, Db.GetUsername(conn, requestingUserId.Value), "SHARE_REMOVED_SELF", fileId);
+                    Db.LogEvent(conn, requestingUserId, Db.GetUsername(conn, requestingUserId.Value), "SHARE_REMOVED_SELF", fileId, isAdminAction);
                     return true;
                 }
 
@@ -365,7 +365,7 @@ namespace fileVault
                     cmd.ExecuteNonQuery();
                 }
 
-                Db.LogEvent(conn, ownerId, Db.GetUsername(conn, ownerId), "FILE_DELETED", null);
+                Db.LogEvent(conn, ownerId, Db.GetUsername(conn, ownerId), "FILE_DELETED", null, isAdminAction);
 
                 try { if (File.Exists(storedPath)) File.Delete(storedPath); } catch { }
 

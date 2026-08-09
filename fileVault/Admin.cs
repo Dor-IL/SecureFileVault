@@ -294,7 +294,7 @@ namespace fileVault
                     MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
                 if (confirm != DialogResult.Yes) return;
 
-                bool deleted = UserService.DeleteFile(LoginRegister.ConnectionString, fileId, Convert.ToInt32(selectedUserId));
+                bool deleted = UserService.DeleteFile(LoginRegister.ConnectionString, fileId, Convert.ToInt32(selectedUserId), isAdminAction: true);
                 if (!deleted)
                     MessageBox.Show("Could not delete that file.");
 

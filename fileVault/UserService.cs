@@ -8,8 +8,25 @@ namespace fileVault
         private const int MaxFailedAttempts = 5;
         private static readonly TimeSpan LockoutDuration = TimeSpan.FromMinutes(5);
 
-        public static bool RegisterUser(string connectionString, string username, string password)
+        public const int MaxUsernameLength = 32;
+        public const int MaxPasswordLength = 64;
+
+        public static bool RegisterUser(string connectionString, string username, string password, out string error)
         {
+            error = null;
+
+            if (username.Length > MaxUsernameLength)
+            {
+                error = $"Username cannot exceed {MaxUsernameLength} characters.";
+                return false;
+            }
+
+            if (password.Length > MaxPasswordLength)
+            {
+                error = $"Password cannot exceed {MaxPasswordLength} characters.";
+                return false;
+            }
+
             string salt = PasswordHasher.GenerateSalt();
             string hash = PasswordHasher.HashPassword(password, salt);
 

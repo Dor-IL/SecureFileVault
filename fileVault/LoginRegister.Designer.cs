@@ -152,13 +152,15 @@
             // txtPassword
             // 
             txtPassword.Location = new Point(44, 148);
+            txtPassword.MaxLength = UserService.MaxPasswordLength;
             txtPassword.Name = "txtPassword";
             txtPassword.Size = new Size(208, 23);
             txtPassword.TabIndex = 1;
-            // 
+            //
             // txtName
-            // 
+            //
             txtName.Location = new Point(44, 88);
+            txtName.MaxLength = UserService.MaxUsernameLength;
             txtName.Name = "txtName";
             txtName.Size = new Size(208, 23);
             txtName.TabIndex = 0;

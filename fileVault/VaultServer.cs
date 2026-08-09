@@ -177,8 +177,16 @@ namespace fileVault
                         if (parts.Length != 2 || !int.TryParse(parts[1], out int checkUserId))
                             return "FAIL|Invalid check request.";
 
-                        bool exists = UserService.UserExists(LoginRegister.ConnectionString, checkUserId);
-                        return exists ? "OK" : "FAIL|Your account has been deleted by an administrator.";
+                        var state = UserService.GetAccountState(LoginRegister.ConnectionString, checkUserId);
+                        switch (state)
+                        {
+                            case AccountState.Active:
+                                return "OK";
+                            case AccountState.Locked:
+                                return "FAIL|LOCKED|Your account has been locked by an administrator.";
+                            default:
+                                return "FAIL|DELETED|Your account has been deleted by an administrator.";
+                        }
                     }
 
                 case "SHARE":

@@ -87,19 +87,8 @@ namespace fileVault
             }
         }
 
-        private static (bool allowed, string message) CheckAccountActive(int userId)
-        {
-            var state = UserService.GetAccountState(LoginRegister.ConnectionString, userId);
-            switch (state)
-            {
-                case AccountState.Active:
-                    return (true, null);
-                case AccountState.Locked:
-                    return (false, "Your account has been locked by an administrator.");
-                default:
-                    return (false, "Your account has been deleted by an administrator.");
-            }
-        }
+        private static (bool allowed, string message) CheckAccountActive(int userId) =>
+            UserService.GetAccountState(LoginRegister.ConnectionString, userId).Describe();
 
         private async Task HandleUploadAsync(NetworkStream stream, string request)
         {
@@ -208,15 +197,12 @@ namespace fileVault
                             return "FAIL|Invalid check request.";
 
                         var state = UserService.GetAccountState(LoginRegister.ConnectionString, checkUserId);
-                        switch (state)
-                        {
-                            case AccountState.Active:
-                                return "OK";
-                            case AccountState.Locked:
-                                return "FAIL|LOCKED|Your account has been locked by an administrator.";
-                            default:
-                                return "FAIL|DELETED|Your account has been deleted by an administrator.";
-                        }
+                        if (state == AccountState.Active)
+                            return "OK";
+
+                        string reason = state == AccountState.Locked ? "LOCKED" : "DELETED";
+                        var (_, message) = state.Describe();
+                        return $"FAIL|{reason}|{message}";
                     }
 
                 case "SHARE":

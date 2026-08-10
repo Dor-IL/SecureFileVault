@@ -1,5 +1,8 @@
 using System.Net;
+using System.Net.Security;
 using System.Net.Sockets;
+using System.Security.Authentication;
+using System.Security.Cryptography.X509Certificates;
 
 namespace fileVault
 {
@@ -9,6 +12,7 @@ namespace fileVault
 
         private readonly TcpListener _listener;
         private readonly CancellationTokenSource _cts = new CancellationTokenSource();
+        private readonly X509Certificate2 _serverCertificate = TlsCertificateProvider.GetOrCreateServerCertificate();
 
         public VaultServer(int port)
         {
@@ -76,10 +80,13 @@ namespace fileVault
         private async Task HandleClientAsync(TcpClient client)
         {
             using (client)
-            using (var stream = client.GetStream())
+            using (var networkStream = client.GetStream())
+            using (var stream = new SslStream(networkStream, leaveInnerStreamOpen: false))
             {
                 try
                 {
+                    await stream.AuthenticateAsServerAsync(_serverCertificate, clientCertificateRequired: false, checkCertificateRevocation: false);
+
                     while (client.Connected)
                     {
                         string request = await NetworkHelper.ReceiveTextAsync(stream);
@@ -105,6 +112,10 @@ namespace fileVault
                 {
                     Console.WriteLine("[Server] Client disconnected.");
                 }
+                catch (AuthenticationException ex)
+                {
+                    Console.WriteLine($"[Server] TLS handshake failed: {ex.Message}");
+                }
                 catch (Exception ex)
                 {
                     Console.WriteLine($"[Server] Error handling client: {ex.Message}");
@@ -115,7 +126,7 @@ namespace fileVault
         private static (bool allowed, string message) CheckAccountActive(int userId) =>
             UserService.GetAccountState(LoginRegister.ConnectionString, userId).Describe();
 
-        private async Task HandleUploadAsync(NetworkStream stream, string request)
+        private async Task HandleUploadAsync(Stream stream, string request)
         {
             try
             {
@@ -143,7 +154,7 @@ namespace fileVault
             }
         }
 
-        private async Task HandleDownloadAsync(NetworkStream stream, string request)
+        private async Task HandleDownloadAsync(Stream stream, string request)
         {
             try
             {

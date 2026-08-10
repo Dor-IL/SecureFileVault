@@ -126,7 +126,7 @@ namespace fileVault
 
             GridDataLoader.Load(
                 dgvAccessLog,
-                @"SELECT log_id, action, file_id, actor, timestamp
+                @"SELECT log_id, action, file_id, file_name, actor, timestamp
                   FROM access_log
                   WHERE user_id = @uid
                   ORDER BY timestamp DESC",

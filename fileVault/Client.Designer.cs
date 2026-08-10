@@ -187,6 +187,8 @@
             AutoScaleMode = AutoScaleMode.Font;
             BackColor = Color.FromArgb(43, 87, 72);
             ClientSize = new Size(800, 450);
+            FormBorderStyle = FormBorderStyle.FixedSingle;
+            MaximizeBox = false;
             Controls.Add(lblTimeStamp);
             Controls.Add(btnUnshare);
             Controls.Add(btnDelete);

@@ -1,4 +1,6 @@
+using System.Net.Security;
 using System.Net.Sockets;
+using System.Security.Cryptography.X509Certificates;
 
 namespace fileVault
 {
@@ -8,7 +10,7 @@ namespace fileVault
         private static readonly TimeSpan RetryDelay = TimeSpan.FromMilliseconds(500);
 
         private TcpClient _client;
-        private NetworkStream _stream;
+        private Stream _stream;
         private string _host;
         private int _port;
 
@@ -20,8 +22,30 @@ namespace fileVault
             _port = port;
             _client = new TcpClient();
             await _client.ConnectAsync(host, port);
-            _stream = _client.GetStream();
+            _stream = await EstablishTlsAsync(_client, host);
             Console.WriteLine("[Client] Connected to server.");
+        }
+
+        private static async Task<SslStream> EstablishTlsAsync(TcpClient client, string host)
+        {
+            var sslStream = new SslStream(client.GetStream(), leaveInnerStreamOpen: false, ValidateServerCertificate);
+            await sslStream.AuthenticateAsClientAsync(host);
+            return sslStream;
+        }
+
+        // The server generates a self-signed certificate on first run and caches it locally
+        // (see TlsCertificateProvider). Since there's no real CA, trust is established by
+        // pinning: the client reads that same cached certificate and only accepts a
+        // connection if the server presents the exact same one.
+        private static bool ValidateServerCertificate(
+            object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors sslPolicyErrors)
+        {
+            if (certificate is null)
+                return false;
+
+            X509Certificate2 expected = TlsCertificateProvider.GetOrCreateServerCertificate();
+            using var presented = new X509Certificate2(certificate);
+            return string.Equals(presented.Thumbprint, expected.Thumbprint, StringComparison.OrdinalIgnoreCase);
         }
 
         // If the process hosting the server closed (another instance takes over the
@@ -63,7 +87,7 @@ namespace fileVault
                 _client?.Close();
                 _client = new TcpClient();
                 await _client.ConnectAsync(_host, _port);
-                _stream = _client.GetStream();
+                _stream = await EstablishTlsAsync(_client, _host);
                 Console.WriteLine("[Client] Reconnected to server.");
             }
             catch
@@ -246,7 +270,7 @@ namespace fileVault
             }
         }
 
-        public NetworkStream GetStream() => _stream;
+        public Stream GetStream() => _stream;
 
         public void Close() => _client?.Close();
     }

@@ -145,15 +145,17 @@ namespace fileVault
         {
             string selected = cmbAccessLogUser.SelectedItem as string;
 
+            const string accessLogQuery = "SELECT log_id, user_id, username, action, file_id, file_name, actor, timestamp FROM access_log";
+
             if (string.IsNullOrEmpty(selected) || selected == "View All")
             {
-                GridDataLoader.Load(dgvAccessLog, "SELECT * FROM access_log ORDER BY Timestamp DESC");
+                GridDataLoader.Load(dgvAccessLog, accessLogQuery + " ORDER BY timestamp DESC");
             }
             else
             {
                 GridDataLoader.Load(
                     dgvAccessLog,
-                    "SELECT * FROM access_log WHERE username = @username ORDER BY Timestamp DESC",
+                    accessLogQuery + " WHERE username = @username ORDER BY timestamp DESC",
                     new SQLiteParameter("@username", selected));
             }
         }

@@ -38,7 +38,7 @@ namespace fileVault
                     cmd.Parameters.AddWithValue("@size", plainData.Length);
 
                     int fileId = Convert.ToInt32(cmd.ExecuteScalar());
-                    Db.LogEvent(conn, ownerId, Db.GetUsername(conn, ownerId), "FILE_UPLOADED", fileId);
+                    Db.LogEvent(conn, ownerId, Db.GetUsername(conn, ownerId), "FILE_UPLOADED", fileId, fileName);
                     return fileId;
                 }
             }
@@ -74,7 +74,7 @@ namespace fileVault
 
                 if (!allowed)
                 {
-                    Db.LogEvent(conn, requestingUserId, Db.GetUsername(conn, requestingUserId), "DOWNLOAD_DENIED", fileId);
+                    Db.LogEvent(conn, requestingUserId, Db.GetUsername(conn, requestingUserId), "DOWNLOAD_DENIED", fileId, fileName);
                     return (false, "Access denied.", null, null);
                 }
 
@@ -85,7 +85,7 @@ namespace fileVault
                 byte[] encrypted = await File.ReadAllBytesAsync(storedPath);
                 byte[] decrypted = Decrypt(encrypted, key, iv);
 
-                Db.LogEvent(conn, requestingUserId, Db.GetUsername(conn, requestingUserId), "DOWNLOAD_SUCCESS", fileId);
+                Db.LogEvent(conn, requestingUserId, Db.GetUsername(conn, requestingUserId), "DOWNLOAD_SUCCESS", fileId, fileName);
                 return (true, "OK", fileName, decrypted);
             }
         }
@@ -100,18 +100,22 @@ namespace fileVault
                     pragma.ExecuteNonQuery();
 
                 int actualOwnerId;
+                string fileName;
 
-                using (var cmd = new SQLiteCommand("SELECT owner_id FROM files WHERE file_id = @fid", conn))
+                using (var cmd = new SQLiteCommand("SELECT owner_id, file_name FROM files WHERE file_id = @fid", conn))
                 {
                     cmd.Parameters.AddWithValue("@fid", fileId);
-                    var result = cmd.ExecuteScalar();
-                    if (result == null) return (false, "File not found.");
-                    actualOwnerId = Convert.ToInt32(result);
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        if (!reader.Read()) return (false, "File not found.");
+                        actualOwnerId = reader.GetInt32(0);
+                        fileName = reader.GetString(1);
+                    }
                 }
 
                 if (actualOwnerId != ownerId)
                 {
-                    Db.LogEvent(conn, ownerId, Db.GetUsername(conn, ownerId), "SHARE_DENIED", fileId);
+                    Db.LogEvent(conn, ownerId, Db.GetUsername(conn, ownerId), "SHARE_DENIED", fileId, fileName);
                     return (false, "Only the file owner can share this file.");
                 }
 
@@ -136,7 +140,7 @@ namespace fileVault
                     cmd.ExecuteNonQuery();
                 }
 
-                Db.LogEvent(conn, ownerId, Db.GetUsername(conn, ownerId), $"FILE_SHARED_WITH:{targetUsername}", fileId);
+                Db.LogEvent(conn, ownerId, Db.GetUsername(conn, ownerId), $"FILE_SHARED_WITH:{targetUsername}", fileId, fileName);
                 return (true, $"Shared with {targetUsername}.");
             }
         }
@@ -151,18 +155,22 @@ namespace fileVault
                     pragma.ExecuteNonQuery();
 
                 int actualOwnerId;
+                string fileName;
 
-                using (var cmd = new SQLiteCommand("SELECT owner_id FROM files WHERE file_id = @fid", conn))
+                using (var cmd = new SQLiteCommand("SELECT owner_id, file_name FROM files WHERE file_id = @fid", conn))
                 {
                     cmd.Parameters.AddWithValue("@fid", fileId);
-                    var result = cmd.ExecuteScalar();
-                    if (result == null) return (false, "File not found.");
-                    actualOwnerId = Convert.ToInt32(result);
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        if (!reader.Read()) return (false, "File not found.");
+                        actualOwnerId = reader.GetInt32(0);
+                        fileName = reader.GetString(1);
+                    }
                 }
 
                 if (actualOwnerId != ownerId)
                 {
-                    Db.LogEvent(conn, ownerId, Db.GetUsername(conn, ownerId), "UNSHARE_DENIED", fileId);
+                    Db.LogEvent(conn, ownerId, Db.GetUsername(conn, ownerId), "UNSHARE_DENIED", fileId, fileName);
                     return (false, "Only the file owner can unshare this file.");
                 }
 
@@ -187,7 +195,7 @@ namespace fileVault
                     cmd.ExecuteNonQuery();
                 }
 
-                Db.LogEvent(conn, ownerId, Db.GetUsername(conn, ownerId), $"FILE_UNSHARED_WITH:{targetUsername}", fileId);
+                Db.LogEvent(conn, ownerId, Db.GetUsername(conn, ownerId), $"FILE_UNSHARED_WITH:{targetUsername}", fileId, fileName);
                 return (true, $"Unshared with {targetUsername}.");
             }
         }

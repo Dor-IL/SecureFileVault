@@ -5,6 +5,8 @@ namespace fileVault
 {
     class VaultServer
     {
+        private static readonly TimeSpan PortRetryInterval = TimeSpan.FromSeconds(1);
+
         private readonly TcpListener _listener;
         private readonly CancellationTokenSource _cts = new CancellationTokenSource();
 
@@ -13,21 +15,44 @@ namespace fileVault
             _listener = new TcpListener(IPAddress.Loopback, port);
         }
 
+        // Only one process can hold the port at a time, so binding it doubles as leader
+        // election: if another instance is already hosting, keep retrying in the background
+        // so this instance takes over automatically the moment that instance goes away.
         public void Start()
         {
-            try
+            Task.Run(() => StartWithRetryAsync(_cts.Token));
+        }
+
+        private async Task StartWithRetryAsync(CancellationToken token)
+        {
+            while (!token.IsCancellationRequested)
             {
-                _listener.Start();
+                try
+                {
+                    _listener.Start();
+                    break;
+                }
+                catch (SocketException ex) when (ex.SocketErrorCode == SocketError.AddressAlreadyInUse)
+                {
+                    try
+                    {
+                        await Task.Delay(PortRetryInterval, token);
+                    }
+                    catch (TaskCanceledException)
+                    {
+                        return;
+                    }
+                }
             }
-            catch (SocketException ex) when (ex.SocketErrorCode == SocketError.AddressAlreadyInUse)
+
+            if (token.IsCancellationRequested)
             {
-                Console.WriteLine($"[Server] Port already in use, assuming another instance is already hosting the server.");
                 return;
             }
 
             Console.WriteLine($"[Server] Listening on port {((IPEndPoint)_listener.LocalEndpoint).Port}...");
 
-            Task.Run(() => AcceptLoopAsync(_cts.Token));
+            await AcceptLoopAsync(token);
         }
 
         private async Task AcceptLoopAsync(CancellationToken token)

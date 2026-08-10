@@ -52,6 +52,7 @@ namespace fileVault
                     username Text NOT NULL,
                     action          TEXT NOT NULL,
                     file_id         INTEGER,
+                    file_name       TEXT,
                     actor           TEXT NOT NULL DEFAULT 'USER',
                     timestamp       TEXT NOT NULL DEFAULT (datetime('now')),
                     FOREIGN KEY (user_id) REFERENCES users(user_id),
@@ -75,10 +76,20 @@ namespace fileVault
                     command.ExecuteNonQuery();
 
                 AddColumnIfMissing(connection, "access_log", "actor", "TEXT NOT NULL DEFAULT 'USER'");
+
+                if (AddColumnIfMissing(connection, "access_log", "file_name", "TEXT"))
+                {
+                    const string backfillSql = @"
+                        UPDATE access_log
+                        SET file_name = (SELECT f.file_name FROM files f WHERE f.file_id = access_log.file_id)
+                        WHERE file_id IS NOT NULL;";
+                    using (var backfill = new SQLiteCommand(backfillSql, connection))
+                        backfill.ExecuteNonQuery();
+                }
             }
         }
 
-        private static void AddColumnIfMissing(SQLiteConnection connection, string table, string column, string definition)
+        private static bool AddColumnIfMissing(SQLiteConnection connection, string table, string column, string definition)
         {
             using (var pragma = new SQLiteCommand($"PRAGMA table_info({table});", connection))
             using (var reader = pragma.ExecuteReader())
@@ -86,23 +97,26 @@ namespace fileVault
                 while (reader.Read())
                 {
                     if (string.Equals(reader["name"].ToString(), column, StringComparison.OrdinalIgnoreCase))
-                        return;
+                        return false;
                 }
             }
 
             using (var alter = new SQLiteCommand($"ALTER TABLE {table} ADD COLUMN {column} {definition};", connection))
                 alter.ExecuteNonQuery();
+
+            return true;
         }
 
-        public static void LogEvent(SQLiteConnection conn, int? userId, string username, string action, int? fileId, bool isAdminAction = false)
+        public static void LogEvent(SQLiteConnection conn, int? userId, string username, string action, int? fileId, string fileName, bool isAdminAction = false)
         {
-            const string sql = @"INSERT INTO access_log (user_id, username, action, file_id, actor)
-                              VALUES (@userId, @username, @action, @fileId, @actor);";
+            const string sql = @"INSERT INTO access_log (user_id, username, action, file_id, file_name, actor)
+                              VALUES (@userId, @username, @action, @fileId, @fileName, @actor);";
             using var cmd = new SQLiteCommand(sql, conn);
             cmd.Parameters.AddWithValue("@userId", (object)userId ?? DBNull.Value);
             cmd.Parameters.AddWithValue("@username", (object)username ?? DBNull.Value);
             cmd.Parameters.AddWithValue("@action", action);
             cmd.Parameters.AddWithValue("@fileId", (object)fileId ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@fileName", (object)fileName ?? DBNull.Value);
             cmd.Parameters.AddWithValue("@actor", isAdminAction ? "ADMIN" : "USER");
             cmd.ExecuteNonQuery();
         }

@@ -77,7 +77,7 @@ namespace fileVault
                     {
                         if (!reader.Read())
                         {
-                            Db.LogEvent(conn, null, username, "LOGIN_FAILED", null);
+                            Db.LogEvent(conn, null, username, "LOGIN_FAILED", null, null);
                             return LoginResult.InvalidCredentials;
                         }
 
@@ -91,7 +91,7 @@ namespace fileVault
                         if (isLocked)
                         {
                             reader.Close();
-                            Db.LogEvent(conn, id, username, "LOGIN_FAILED", null);
+                            Db.LogEvent(conn, id, username, "LOGIN_FAILED", null, null);
                             return LoginResult.AccountLocked;
                         }
 
@@ -102,7 +102,7 @@ namespace fileVault
                             if (DateTime.UtcNow < lockedUntil)
                             {
                                 reader.Close();
-                                Db.LogEvent(conn, id, username, "LOGIN_FAILED", null);
+                                Db.LogEvent(conn, id, username, "LOGIN_FAILED", null, null);
                                 return LoginResult.AccountLocked;
                             }
                         }
@@ -114,14 +114,14 @@ namespace fileVault
                         if (ok)
                         {
                             ResetFailedAttempts(conn, id);
-                            Db.LogEvent(conn, id, username, "LOGIN_SUCCESS", null);
+                            Db.LogEvent(conn, id, username, "LOGIN_SUCCESS", null, null);
                             userId = id;
                             return LoginResult.Success;
                         }
                         else
                         {
                             RegisterFailedAttempt(conn, id, failedAttempts + 1);
-                            Db.LogEvent(conn, id, username, "LOGIN_FAILED", null);
+                            Db.LogEvent(conn, id, username, "LOGIN_FAILED", null, null);
                             return LoginResult.InvalidCredentials;
                         }
                     }
@@ -185,7 +185,7 @@ namespace fileVault
                     cmd.ExecuteNonQuery();
                 }
 
-                Db.LogEvent(conn, userId, Db.GetUsername(conn, userId), "ADMIN_LOCK", null, isAdminAction: true);
+                Db.LogEvent(conn, userId, Db.GetUsername(conn, userId), "ADMIN_LOCK", null, null, isAdminAction: true);
             }
         }
 
@@ -205,7 +205,7 @@ namespace fileVault
                     cmd.ExecuteNonQuery();
                 }
 
-                Db.LogEvent(conn, userId, Db.GetUsername(conn, userId), "ADMIN_UNLOCK", null, isAdminAction: true);
+                Db.LogEvent(conn, userId, Db.GetUsername(conn, userId), "ADMIN_UNLOCK", null, null, isAdminAction: true);
             }
         }
 
@@ -310,7 +310,7 @@ namespace fileVault
 
                         tx.Commit();
 
-                        Db.LogEvent(conn, null, deletedUsername, "USER_DELETED", null, isAdminAction: true);
+                        Db.LogEvent(conn, null, deletedUsername, "USER_DELETED", null, null, isAdminAction: true);
 
                         foreach (var path in filePaths)
                         {
@@ -335,10 +335,11 @@ namespace fileVault
                     pragma.ExecuteNonQuery();
 
                 string storedPath = null;
+                string fileName = null;
                 int ownerId = -1;
 
                 using (var cmd = new SQLiteCommand(
-                    "SELECT stored_path, owner_id FROM files WHERE file_id = @id", conn))
+                    "SELECT stored_path, owner_id, file_name FROM files WHERE file_id = @id", conn))
                 {
                     cmd.Parameters.AddWithValue("@id", fileId);
                     using (var reader = cmd.ExecuteReader())
@@ -346,6 +347,7 @@ namespace fileVault
                         if (!reader.Read()) return false;
                         storedPath = reader.GetString(0);
                         ownerId = reader.GetInt32(1);
+                        fileName = reader.GetString(2);
                     }
                 }
 
@@ -360,12 +362,12 @@ namespace fileVault
 
                         if (rowsAffected == 0)
                         {
-                            Db.LogEvent(conn, requestingUserId, Db.GetUsername(conn, requestingUserId.Value), "DELETE_DENIED", fileId, isAdminAction);
+                            Db.LogEvent(conn, requestingUserId, Db.GetUsername(conn, requestingUserId.Value), "DELETE_DENIED", fileId, fileName, isAdminAction);
                             return false;
                         }
                     }
 
-                    Db.LogEvent(conn, requestingUserId, Db.GetUsername(conn, requestingUserId.Value), "SHARE_REMOVED_SELF", fileId, isAdminAction);
+                    Db.LogEvent(conn, requestingUserId, Db.GetUsername(conn, requestingUserId.Value), "SHARE_REMOVED_SELF", fileId, fileName, isAdminAction);
                     return true;
                 }
 
@@ -382,7 +384,7 @@ namespace fileVault
                     cmd.ExecuteNonQuery();
                 }
 
-                Db.LogEvent(conn, ownerId, Db.GetUsername(conn, ownerId), "FILE_DELETED", null, isAdminAction);
+                Db.LogEvent(conn, ownerId, Db.GetUsername(conn, ownerId), "FILE_DELETED", null, fileName, isAdminAction);
 
                 try { if (File.Exists(storedPath)) File.Delete(storedPath); } catch { }
 

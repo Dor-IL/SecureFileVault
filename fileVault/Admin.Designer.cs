@@ -190,6 +190,8 @@
             AutoScaleMode = AutoScaleMode.Font;
             BackColor = Color.FromArgb(110, 26, 55);
             ClientSize = new Size(800, 450);
+            FormBorderStyle = FormBorderStyle.FixedSingle;
+            MaximizeBox = false;
             Controls.Add(lblTimeStamp);
             Controls.Add(lblAccessLogTable);
             Controls.Add(cmbAccessLogUser);

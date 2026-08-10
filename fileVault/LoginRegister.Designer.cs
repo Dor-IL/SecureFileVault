@@ -171,6 +171,8 @@
             AutoScaleMode = AutoScaleMode.Font;
             BackColor = Color.Black;
             ClientSize = new Size(800, 450);
+            FormBorderStyle = FormBorderStyle.FixedSingle;
+            MaximizeBox = false;
             Controls.Add(panel1);
             Name = "LoginRegister";
             Text = "Form1";
